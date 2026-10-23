@@ -120,6 +120,10 @@ jobs:
           If the unpacker dropped the files' execute permission ("Permission denied"): `chmod +x kyty_emulator
           kyty_shader_precompile kyty_launcher run_ds.sh precompile-linux.sh get-dlss-linux.sh`.
 
+          Keep the kernel's own CPU scheduler: the emulator places its threads itself (`KYTY_RENDER_CPUS`), and a
+          sched_ext scheduler works against that (`scx_lavd`, which CachyOS suggests for games: about 10% slower on an
+          i5-14400, issue #80). A power profile (balanced or performance) made no measurable difference there.
+
           ## Shader precompile (optional)
 
           `./precompile-linux.sh --game <the game>` collects every shader and pipeline of the game into the static
