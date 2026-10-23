@@ -208,6 +208,9 @@ void                   InstallGpuResources(Graphics::GpuResourceManager* resourc
 // Windows with guard pages: the pages read back lately that were not for a while get guards again (the render thread's,
 // once a frame; GuestAddressSpace::CoolHotReads).
 void CoolHotReads();
+// Windows: the texture offload is about to give part of the backing view no access or discard it (texture-offload.h); the
+// pages read back there leave GuestAddressSpace::NoteRead's set, their locks with them.
+void DropHotReadsBacking(uint64_t backing, uint64_t size);
 
 int KYTY_SYSV_ABI KernelMapNamedFlexibleMemory(void** addr_in_out, size_t len, int prot, int flags,
                                                const char* name);

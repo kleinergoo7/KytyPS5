@@ -1825,7 +1825,11 @@ public:
 		constexpr uint64_t Page    = 0x1000;
 		const uint64_t     page    = vaddr & ~(Page - 1);
 		auto*              backing = const_cast<uint8_t*>(m_backing->BackingPointer(page, Page));
-		if (backing == nullptr) return;
+		// (Not in the texture offload's ranges: it gives their backing pages no access and discards them, and Windows
+		// unlocks a locked page given no access. DropHotBacking.)
+		if (backing == nullptr || TextureOffload::MayOverlap(page, Page) ||
+		    TextureOffload::MayOverlapBacking(reinterpret_cast<uint64_t>(backing), Page))
+			return;
 		const uint64_t  now = GetTickCount64();
 		std::lock_guard lock(m_hot_mutex);
 		auto            it = m_hot.find(page);
@@ -1885,6 +1889,27 @@ public:
 			++cooled;
 		}
 		LiveCounters::Add(LiveCounters::ReadHotCools, cooled);
+	}
+
+	// The texture offload is about to give [backing, backing + size) of the backing view no access, or discard it: the
+	// pages read back there are no longer locked (Windows unlocks a locked page given no access; a discard would keep a
+	// locked one in RAM), so they leave the set. Their guest pages have guards by then: the offload counts its range
+	// (TextureOffload::MayOverlap) before its watchers protect the guest view, and ProtectView gives such pages guards.
+	// (Bios2000's point in PR #164.)
+	void DropHotBacking(uint64_t backing, uint64_t size) {
+		constexpr uint64_t Page  = 0x1000;
+		const auto         begin = reinterpret_cast<uint8_t*>(backing & ~(Page - 1));
+		const auto         end   = reinterpret_cast<uint8_t*>(backing + size);
+		std::lock_guard    lock(m_hot_mutex);
+		if (m_hot_locks.empty() || m_hot_locks.lower_bound(begin) == m_hot_locks.lower_bound(end)) return;
+		for (auto it = m_hot.begin(); it != m_hot.end();) {
+			if (it->second.backing >= begin && it->second.backing < end) {
+				UnlockHotBacking(it->second.backing);
+				it = m_hot.erase(it);
+			} else {
+				++it;
+			}
+		}
 	}
 #endif
 
@@ -2293,8 +2318,11 @@ private:
 			{
 				std::lock_guard lock(m_hot_mutex);
 				for (auto it = m_hot.lower_bound(vaddr & ~(Page - 1)); it != m_hot.end() && it->first < end; ++it) {
-					// (A page mapped again over other memory is no longer the one locked.)
-					if (m_backing->BackingPointer(it->first, Page) != it->second.backing) continue;
+					// (A page mapped again over other memory is no longer the one locked; one the texture offload takes is
+					// its guard's: DropHotBacking.)
+					if (m_backing->BackingPointer(it->first, Page) != it->second.backing ||
+					    TextureOffload::MayOverlap(it->first, Page))
+						continue;
 					const auto begin = std::max(it->first, vaddr);
 					const auto until = std::min(it->first + Page, end);
 					if (!hot.empty() && hot.back().second == begin) {
