@@ -405,7 +405,7 @@ const Table& Chinese() {
 	    {"dlss.noRtx", "DLSS 需要 NVIDIA RTX 显卡"},
 	    {"dlss.noLibrary", "DLSS：请先下载并构建其运行库（画质页，只需一次）"},
 	    {"fsr.ok", "AMD FSR 3 可用（已内置）"},
-	    {"emulator.missing", "启动器旁没有 kyty_emulator（用 ./build-linux.sh 构建）"},
+	    {"emulator.missing", "启动器所在文件夹中没有 kyty_emulator（请用 ./build-linux.sh 构建）"},
 
 	    {"summary.window", "窗口 {0}"},
 	    {"summary.fullscreen", "全屏 {0}"},
@@ -517,7 +517,7 @@ const Table& Chinese() {
 	     "编译器时会询问是否安装（y/N，然后输入密码）。模拟器不附带任何 NVIDIA 文件。"},
 	    {"dlssruntime.found", "位于 {0}"},
 	    {"dlssruntime.none", "尚未构建"},
-	    {"dlssruntime.noScript", "启动器旁没有 get-dlss-linux.sh"},
+	    {"dlssruntime.noScript", "启动器所在文件夹中没有 get-dlss-linux.sh"},
 	    {"fsr", "AMD FSR 3 帧生成（2 倍，任意显卡；替代 DLSS）"},
 	    {"fsr.desc",
 	     "根据游戏的深度与运动，在两帧之间生成一帧。开启垂直同步时显示帧数不超过显示器刷新率。"},
@@ -559,7 +559,7 @@ const Table& Chinese() {
 	     "显示在游戏画面右上角：帧率与帧时间；「详细」另含显卡、处理器与内存。游戏中按 F8 切换。"},
 	    {"mangohud", "MangoHud"},
 	    {"mangohud.desc", "在游戏画面上显示 MangoHud（帧率、处理器与显卡负载、温度、功耗）。"},
-	    {"mangohud.missing", "未安装 MangoHud（发行版的 mangohud 软件包）。"},
+	    {"mangohud.missing", "未安装 MangoHud（请安装发行版中的 mangohud 软件包）。"},
 	    {"safegpu", "安全 GPU 模式"},
 	    {"safegpu.desc", "防止显卡挂起导致的崩溃（device "
 	                     "lost、驱动恢复时黑屏）：游戏的计算任务逐个执行。帧率约降低 "
@@ -570,7 +570,7 @@ const Table& Chinese() {
 	    {"uiscale.auto", "自动"},
 	    {"terminal", "终端"},
 	    {"terminal.auto", "自动"},
-	    {"terminal.desc", "游戏日志、预编译和 DLSS 构建所在的窗口。"},
+	    {"terminal.desc", "显示游戏日志、预编译和 DLSS 构建过程的窗口。"},
 	    {"terminal.none", "未找到终端程序：游戏会在没有日志窗口的情况下启动（日志写入日志文件夹），"
 	                      "预编译和 DLSS 构建无法从这里启动。"},
 	    {"credit", "设置项沿用 Windows 启动器（launcher-windows）。"},
