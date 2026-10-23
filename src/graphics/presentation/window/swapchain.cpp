@@ -1387,10 +1387,14 @@ Swapchain::Status Swapchain::Present() {
 	present.waitSemaphoreCount = 1;
 
 	vk::Result result;
-	if (auto& graphics = m_window.graphic_ctx; FrameGen::OwnsSwapchain()) {
+	if (auto& graphics = m_window.graphic_ctx; FrameGen::OwnsSwapchain() && graphics.present_queue != nullptr) {
 		// FSR's swapchain: its game queue is the present queue (FrameGen::CreateSwapchain).
 		Common::LockGuard lock(graphics.present_queue_mutex);
 		result = FrameGen::QueuePresent(graphics.present_queue, present);
+	} else if (FrameGen::OwnsSwapchain()) {
+		// ... or the graphics queue, without a present queue (issue #170: one graphics queue).
+		Common::LockGuard lock(graphics.queue_mutex);
+		result = FrameGen::QueuePresent(graphics.queue, present);
 	} else if (graphics.present_queue != nullptr) {
 		// Its own queue: a present blocked in the kernel does not hold up other submissions.
 		Common::LockGuard lock(graphics.present_queue_mutex);
