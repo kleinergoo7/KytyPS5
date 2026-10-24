@@ -358,6 +358,11 @@ int main(int argc, char* argv[]) {
 #endif
 	VirtualMemory::Init();
 	InitializeThreads();
+	// KYTY_ALLOC_TRACE=<sizes> (diagnostics, e.g. "112,64,16-256"): the stacks of heap blocks of those sizes from the
+	// start (live `alloctrace dump <path>` writes the live ones); the live `alloctrace start` misses what loading made.
+	if (const char* sizes = std::getenv("KYTY_ALLOC_TRACE"); sizes != nullptr && *sizes != '\0')
+		std::printf("Allocation trace from start-up (%s): %s\n", sizes,
+		            LocalPlatform::StartAllocTrace(sizes) ? "on" : "unavailable");
 
 	RunOptions options;
 	bool       show_help = false;

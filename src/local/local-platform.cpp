@@ -1302,6 +1302,7 @@ uint64_t Mix(uint64_t value) {
 }
 
 void Record(void* block, size_t size) {
+	if (g_full.load(std::memory_order_relaxed)) return;
 	void*      frames[Frames] {};
 	const auto captured = RtlCaptureStackBackTrace(2, Frames, frames, nullptr);
 	uint64_t   hash     = size;
@@ -1335,6 +1336,12 @@ void Record(void* block, size_t size) {
 			g_blocks[i] = g_scratch[k];
 		}
 		g_used = g_live = live;
+		// Half the slots live blocks: no more records (each would go in from scratch again; a trace from start-up of
+		// 32-176 bytes livelocked so).
+		if ((live + 1) * 2 > BlockSlots) {
+			g_full = true;
+			return;
+		}
 	}
 	const uint64_t address = reinterpret_cast<uint64_t>(block);
 	for (size_t i = Mix(address) % BlockSlots, probes = 0; probes < BlockSlots; i = (i + 1) % BlockSlots, probes++) {
