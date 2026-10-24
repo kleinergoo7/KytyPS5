@@ -108,6 +108,17 @@ static bool HasExtension(const std::vector<const char*>& extensions, const char*
 	                   [name](const char* ext) { return strcmp(ext, name) == 0; });
 }
 
+#if defined(_WIN32)
+// KYTY_FULLSCREEN_EXCLUSIVE=0|1 (GraphicContext::full_screen_exclusive): -1 when unset.
+static int FullscreenExclusiveRequest() {
+	static const int request = [] {
+		const char* value = std::getenv("KYTY_FULLSCREEN_EXCLUSIVE");
+		return value == nullptr || *value == '\0' ? -1 : value[0] == '0' ? 0 : 1;
+	}();
+	return request;
+}
+#endif
+
 // VK_KHR_pipeline_binary for the static precompile's pipelines (pipelineBinaries.h), with maintenance5
 // for the pipeline creation flags it needs. KYTY_PIPELINE_BINARIES=0: the static pipeline cache instead.
 // Without the binaries, maintenance5 alone where the driver has it: pipelines take their SPIR-V inline,
@@ -1198,6 +1209,15 @@ static void VulkanGetExtensions(SDL_Window* window, VulkanExtensions& r) {
 		r.required_extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
 	}
 
+#if defined(_WIN32)
+	// KYTY_FULLSCREEN_EXCLUSIVE (issue #166): VK_EXT_full_screen_exclusive needs this instance extension.
+	if (FullscreenExclusiveRequest() >= 0 &&
+	    HasExtension(r.available_extensions, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME) &&
+	    !HasExtension(r.required_extensions, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME)) {
+		r.required_extensions.push_back(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+	}
+#endif
+
 	if (HasExtension(r.available_extensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
 		r.required_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	} else {
@@ -1631,6 +1651,21 @@ void WindowContext::CreateVulkan() {
 		AddPipelineBinaryExtensions(available_extensions, device_extensions);
 		AddCopyMemoryIndirectExtension(available_extensions, device_extensions);
 		AntiLag::AddDeviceExtension(available_extensions, device_extensions); // (KYTY_LOW_LATENCY)
+#if defined(_WIN32)
+		// KYTY_FULLSCREEN_EXCLUSIVE (issue #166: on an RX 9060 XT fullscreen ran ~8% slower than a window until a Game Bar
+		// capture took it off the driver's own path): the swapchain then tells the driver whether exclusive fullscreen
+		// may be used (Swapchain::Create).
+		if (const int request = FullscreenExclusiveRequest();
+		    request >= 0 && HasExtension(available_extensions, "VK_EXT_full_screen_exclusive") &&
+		    HasExtension(r.required_extensions, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME)) {
+			device_extensions.push_back("VK_EXT_full_screen_exclusive");
+			graphic_ctx.full_screen_exclusive = request;
+			std::printf("Fullscreen: exclusive fullscreen %s (KYTY_FULLSCREEN_EXCLUSIVE=%d)\n",
+			            request == 0 ? "disallowed" : "allowed", request);
+		} else if (request >= 0) {
+			std::printf("Fullscreen: KYTY_FULLSCREEN_EXCLUSIVE ignored: the driver lacks VK_EXT_full_screen_exclusive\n");
+		}
+#endif
 		// Linux DLSS (KYTY_UPSCALER=dlss): the device extensions NVIDIA's NGX needs.
 		FrameGen::AddDeviceExtensions(graphic_ctx.instance, graphic_ctx.physical_device, available_extensions,
 		                              device_extensions);
