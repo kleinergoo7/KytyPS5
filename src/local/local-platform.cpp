@@ -1373,9 +1373,21 @@ void Forget(void* block) {
 	}
 }
 
+// Sizes of MaxSize and more: a few ranges beside the flags (set before the hooks go in).
+constexpr uint32_t                  LargeRanges = 16;
+std::pair<uint64_t, uint64_t>       g_large[LargeRanges] {};
+uint32_t                            g_large_count = 0;
+
+bool Traced(size_t size) {
+	if (size < MaxSize) return g_sizes[size] != 0;
+	for (uint32_t i = 0; i < g_large_count; i++)
+		if (size >= g_large[i].first && size <= g_large[i].second) return true;
+	return false;
+}
+
 void* NTAPI HookAllocate(void* heap, ULONG flags, SIZE_T size) {
 	void* block = g_allocate(heap, flags, size);
-	if (block != nullptr && size < MaxSize && g_sizes[size] != 0) Record(block, size);
+	if (block != nullptr && Traced(size)) Record(block, size);
 	return block;
 }
 
@@ -1388,7 +1400,7 @@ void* NTAPI HookReallocate(void* heap, ULONG flags, void* block, SIZE_T size) {
 	void* result = g_reallocate(heap, flags, block, size);
 	if (result != nullptr) {
 		if (block != nullptr) Forget(block);
-		if (size < MaxSize && g_sizes[size] != 0) Record(result, size);
+		if (Traced(size)) Record(result, size);
 	}
 	return result;
 }
@@ -1452,7 +1464,8 @@ bool StartAllocTrace(const char* sizes) {
 			last = std::strtoull(text, &end, 10);
 		}
 		for (auto at = size; at <= last && at < MaxSize; at++) g_sizes[at] = 1;
-		text = *end == ',' ? end + 1 : end;
+		if (last >= MaxSize && g_large_count < LargeRanges) g_large[g_large_count++] = {std::max<uint64_t>(size, MaxSize), last};
+		text = *end == ',' || *end == ';' ? end + 1 : end; // (';' too: a list in a comma-separated list of settings)
 	}
 	// Frees first: a block traced from here on is forgotten whichever module frees it.
 	const int patched = Patch(reinterpret_cast<void*>(g_free), reinterpret_cast<void*>(&HookFree)) +
