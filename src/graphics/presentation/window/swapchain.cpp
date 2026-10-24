@@ -613,6 +613,8 @@ struct Presenter::Impl {
 		std::atomic<uint64_t> handed {0}, presented {0}, replaced {0}, not_due {0}, present_us {0}, present_max_us {0};
 		std::chrono::steady_clock::time_point since = std::chrono::steady_clock::now();
 	} present_stats;
+	// Presenter::RequestSwapchainRecreate (the window's thread) for the present thread's next frame.
+	std::atomic<bool> recreate_requested {false};
 	void NotePresentCall(std::chrono::steady_clock::duration took) {
 		auto&          st = present_stats;
 		const uint64_t us = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(took).count());
@@ -1703,6 +1705,11 @@ void Presenter::Present(Frame& frame, bool reuse) {
 	if (!frame.blank && swapchain.SetHdr(frame.hdr)) {
 		m_impl->RecoverSwapchain(Swapchain::Status::Recreate);
 	}
+	if (m_impl->recreate_requested.exchange(false, std::memory_order_acq_rel)) {
+		std::printf("Presenter: the swapchain made again (the window went in or out of full screen)\n");
+		std::fflush(stdout);
+		m_impl->RecoverSwapchain(Swapchain::Status::Recreate);
+	}
 	for (uint32_t attempt = 0; attempt < 2; attempt++) {
 		auto status = swapchain.AcquireNextImage();
 		if (status != Swapchain::Status::Success) {
@@ -1786,6 +1793,10 @@ void Presenter::Present(Frame& frame, bool reuse) {
 	}
 	LOGF("Vulkan presentation retry exhausted; dropping frame\n");
 	m_impl->frames.Release(&frame, reuse);
+}
+
+void Presenter::RequestSwapchainRecreate() noexcept {
+	m_impl->recreate_requested.store(true, std::memory_order_release);
 }
 
 void Presenter::Discard(Frame& frame) {
