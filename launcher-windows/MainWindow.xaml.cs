@@ -31,7 +31,7 @@ sealed class Choice {
 partial class MainWindow : Window {
 	// The window's sizes for each aspect ratio of the 3D.
 	static readonly Dictionary<string, string[]> ResolutionsByRatio = new Dictionary<string, string[]> {
-		{ "16:9", new[] { "1280x720", "1920x1080", "2560x1440", "3840x2160" } },
+		{ "16:9", new[] { "1280x720", "1600x900", "1920x1080", "2560x1440", "3840x2160" } },
 		{ "21:9", new[] { "2560x1080", "3440x1440", "3840x1600", "5120x2160" } },
 		{ "32:9", new[] { "3840x1080", "5120x1440", "7680x2160" } },
 	};
@@ -65,7 +65,7 @@ partial class MainWindow : Window {
 	TextBox gamePath, extraArgs;
 	ComboBox resolution, ratio, render, upscaler, dlssModel, output, quality, frameGen, language, hud, uiLanguage, gpu;
 	CheckBox fullscreen, aspect, hdr, fps120, vsync, lowLatency, fsr, cheats, redzone, safeGpu, ecores, presentDirect, antiLag,
-		keepResident, fps30, padSpeaker;
+		keepResident, fps30, padSpeaker, reopenLauncher;
 	TextBlock renderNote, outputNote, upscalerNote, frameGenNote, streamlineText, cheatState, bannerTitle, bannerLine, storeLine;
 	Image banner;
 	Border bannerFallback;
@@ -805,6 +805,7 @@ partial class MainWindow : Window {
 			ReadForm();
 			Build();
 		};
+		reopenLauncher = Switch(S.Bool("reopen_launcher"));
 		var logs = FlatButton("button.logs", (s, e) => OpenLogs());
 		var readme = FlatButton("button.readme", (s, e) => OpenReadme());
 		var root = FlatButton("button.root", (s, e) => OpenFolder(context.Root));
@@ -827,6 +828,7 @@ partial class MainWindow : Window {
 			Row("extra", extraArgs, Desc(T("extra.desc"))),
 			Section("advanced.launcher"),
 			Row("uilang", uiLanguage),
+			Row("reopen", reopenLauncher, Desc(T("reopen.desc"))),
 			Row(null, Horizontal(logs, readme, root)),
 			Desc(T("credit")) });
 		return Page("advanced.title", content.ToArray());
@@ -894,6 +896,7 @@ partial class MainWindow : Window {
 		S.Set("hdr", hdr.IsChecked == true);
 		S.Set("cheats", cheats.IsChecked == true);
 		S.Set("pad_speaker", padSpeaker.IsChecked == true);
+		if (reopenLauncher != null) S.Set("reopen_launcher", reopenLauncher.IsChecked == true);
 		S.Set("safegpu", safeGpu.IsChecked == true);
 		S.Set("hud", Math.Max(0, hud.SelectedIndex));
 		S.Set(renderForDlss ? "render_dlss" : "render", SelectedRender());
@@ -979,13 +982,28 @@ partial class MainWindow : Window {
 
 	void Play() {
 		ReadForm();
+		Process process;
 		try {
-			commands.Start(commands.PlayArguments(game.Found ? game : null));
+			process = commands.Start(commands.PlayArguments(game.Found ? game : null));
 		} catch (Exception e) {
 			MessageBox.Show(this, F("error.start", e.Message), T("error.title"), MessageBoxButton.OK, MessageBoxImage.Error);
 			return;
 		}
-		Close();
+		if (process == null || !S.Bool("reopen_launcher")) {
+			Close();
+			return;
+		}
+		// (Advanced page, "Back to the launcher after the game": hidden while the game's window - run.cmd's - is open.)
+		Hide();
+		process.EnableRaisingEvents = true;
+		process.Exited += (s, e) => Dispatcher.BeginInvoke(new Action(() => {
+			Show();
+			Activate();
+		}));
+		if (process.HasExited) {
+			Show();
+			Activate();
+		}
 	}
 
 	void Precompile(string option) {
