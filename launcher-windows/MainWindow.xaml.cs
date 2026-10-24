@@ -201,23 +201,23 @@ partial class MainWindow : Window {
 	}
 
 	// A slider with the value it stands for next to it. Every number on these pages is an int, so the caller formats
-        // the text and stores the rounded value; the store happens here because ReadForm only knows the controls it has
-        // always had.
-        FrameworkElement SliderRow(double min, double max, double step, int value, Func<double, string> text, Action<double> changed) {
-                var label = new TextBlock { Foreground = Res<Brush>("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center,
-                        MinWidth = 76, Margin = new Thickness(14, 0, 0, 0) };
-                var bar = new Slider {
-                        Minimum = min, Maximum = max, SmallChange = step, LargeChange = step * 4, TickFrequency = step,
-                        IsSnapToTickEnabled = true, Width = 300, VerticalAlignment = VerticalAlignment.Center,
-                        Foreground = Res<Brush>("TextBrush"),
-                };
-                label.Text = text(value);
-                bar.ValueChanged += (s, e) => { label.Text = text(e.NewValue); changed(e.NewValue); Changed(); };
-                bar.Value = value;
-                return Horizontal(bar, label);
-        }
+	// the text and stores the rounded value; the store happens here because ReadForm only knows the controls it has
+	// always had.
+	FrameworkElement SliderRow(double min, double max, double step, int value, Func<double, string> text, Action<double> changed) {
+		var label = new TextBlock { Foreground = Res<Brush>("TextDimBrush"), VerticalAlignment = VerticalAlignment.Center,
+			MinWidth = 76, Margin = new Thickness(14, 0, 0, 0) };
+		var bar = new Slider {
+			Minimum = min, Maximum = max, SmallChange = step, LargeChange = step * 4, TickFrequency = step,
+			IsSnapToTickEnabled = true, Width = 300, VerticalAlignment = VerticalAlignment.Center,
+			Foreground = Res<Brush>("TextBrush"),
+		};
+		label.Text = text(value);
+		bar.ValueChanged += (s, e) => { label.Text = text(e.NewValue); changed(e.NewValue); Changed(); };
+		bar.Value = value;
+		return Horizontal(bar, label);
+	}
 
-        static object Value(ComboBox box) {
+	static object Value(ComboBox box) {
 		var choice = box.SelectedItem as Choice;
 		return choice == null ? null : choice.Value;
 	}
@@ -756,14 +756,14 @@ partial class MainWindow : Window {
 			Row("language", language, Desc(T("language.desc"))),
 			Section("game.controller"),
 			Row("padspeaker", padSpeaker, Desc(T("padspeaker.desc"))),
-                        Row("padvolume", SliderRow(0, 100, 5, S.Int("pad_speaker_volume"),
-                                v => ((int)v).ToString(CultureInfo.InvariantCulture), v => S.Set("pad_speaker_volume", (int)v)), Desc(T("padvolume.desc"))),
-                        Row("padvibration", SliderRow(0, 400, 10, S.Int("pad_vibration"),
-                                v => F("padStrengthValue", (v / 100.0).ToString("0.0#", CultureInfo.InvariantCulture)), v => S.Set("pad_vibration", (int)v)), Desc(T("padvibration.desc"))),
-                        Row("padactuator", SliderRow(5, 400, 5, S.Int("pad_actuator"),
-                                v => F("padStrengthValue", (v / 100.0).ToString("0.0#", CultureInfo.InvariantCulture)), v => S.Set("pad_actuator", (int)v)), Desc(T("padactuator.desc"))),
-                        Row("padlength", SliderRow(5, 500, 5, S.Int("pad_vibration_ms"),
-                                v => F("padLengthValue", ((int)v).ToString(CultureInfo.InvariantCulture)), v => S.Set("pad_vibration_ms", (int)v)), Desc(T("padlength.desc"))),
+			Row("padvolume", SliderRow(0, 100, 5, S.Int("pad_speaker_volume"),
+				v => ((int)v).ToString(CultureInfo.InvariantCulture), v => S.Set("pad_speaker_volume", (int)v)), Desc(T("padvolume.desc"))),
+			Row("padvibration", SliderRow(0, 400, 10, S.Int("pad_vibration"),
+				v => F("padStrengthValue", (v / 100.0).ToString("0.0#", CultureInfo.InvariantCulture)), v => S.Set("pad_vibration", (int)v)), Desc(T("padvibration.desc"))),
+			Row("padactuator", SliderRow(5, 400, 5, S.Int("pad_actuator"),
+				v => F("padStrengthValue", (v / 100.0).ToString("0.0#", CultureInfo.InvariantCulture)), v => S.Set("pad_actuator", (int)v)), Desc(T("padactuator.desc"))),
+			Row("padlength", SliderRow(5, 500, 5, S.Int("pad_vibration_ms"),
+				v => F("padLengthValue", ((int)v).ToString(CultureInfo.InvariantCulture)), v => S.Set("pad_vibration_ms", (int)v)), Desc(T("padlength.desc"))),
 			Section("game.cheats"),
 			Row("cheats", Horizontal(cheats, choose, cheatState), Desc(T("cheats.desc"))));
 	}

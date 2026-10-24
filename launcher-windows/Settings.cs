@@ -22,8 +22,8 @@ sealed class Settings {
 		new object[] {"lowlatency", false}, new object[] {"ui_language", ""},
 		// (Game page: the DualSense's own speaker.)
 		new object[] {"pad_speaker", true}, new object[] {"pad_speaker_volume", 100},
-        new object[] {"pad_vibration", 200}, new object[] {"pad_vibration_ms", 60},
-        new object[] {"pad_actuator", 400},
+		new object[] {"pad_vibration", 200}, new object[] {"pad_vibration_ms", 60},
+		new object[] {"pad_actuator", 400},
 		// (Experimental page.)
 		new object[] {"present_direct", false}, new object[] {"antilag", false}, new object[] {"keep_resident", false},
 		new object[] {"fps30", false},
