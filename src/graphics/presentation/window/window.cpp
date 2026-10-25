@@ -362,11 +362,13 @@ static void GameEventFinger([[maybe_unused]] const EventFinger& f) {
 }
 
 // The PS button (an Xbox pad's Guide button) held for two seconds quits, as Close Game on the PS5's home screen (issue
-// #203: pads and Steam Big Picture had no way out): the game has no use for it, and a short press does nothing.
-static SDL_TimerID g_quit_hold = 0;
+// #203: pads and Steam Big Picture had no way out): the game has no use for it, and a short press does nothing. So do
+// Back and Start held together (an Xbox pad's View and Menu, a PlayStation pad's Create and Options), for a pad whose
+// Guide button Steam or Windows' Game Bar takes.
+static SDL_TimerID g_quit_hold = 0, g_quit_combo = 0;
 
-static uint32_t QuitAfterHold(uint32_t /*interval*/, void* /*param*/) {
-	LOGF("Controller: the PS button held for 2 s, quitting\n");
+static uint32_t QuitAfterHold(uint32_t /*interval*/, void* what) {
+	LOGF("Controller: %s held for 2 s, quitting\n", static_cast<const char*>(what));
 	SDL_Event quit {};
 	quit.type = SDL_QUIT;
 	(void)SDL_PushEvent(&quit);
@@ -380,10 +382,22 @@ static void GameEventController([[maybe_unused]] const EventController& f) {
 	}
 
 	if (f.button == SDL_CONTROLLER_BUTTON_GUIDE && (f.down || f.up)) {
-		if (f.down && g_quit_hold == 0) g_quit_hold = SDL_AddTimer(2000, QuitAfterHold, nullptr);
+		if (f.down && g_quit_hold == 0)
+			g_quit_hold = SDL_AddTimer(2000, QuitAfterHold, const_cast<char*>("the PS button"));
 		if (f.up && g_quit_hold != 0) {
 			(void)SDL_RemoveTimer(g_quit_hold);
 			g_quit_hold = 0;
+		}
+	}
+	if ((f.button == SDL_CONTROLLER_BUTTON_BACK || f.button == SDL_CONTROLLER_BUTTON_START) && (f.down || f.up)) {
+		auto*      pad  = SDL_GameControllerFromInstanceID(f.id);
+		const bool both = f.down && pad != nullptr && SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_BACK) != 0 &&
+		                  SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_START) != 0;
+		if (both && g_quit_combo == 0)
+			g_quit_combo = SDL_AddTimer(2000, QuitAfterHold, const_cast<char*>("Back and Start"));
+		if (f.up && g_quit_combo != 0) {
+			(void)SDL_RemoveTimer(g_quit_combo);
+			g_quit_combo = 0;
 		}
 	}
 
