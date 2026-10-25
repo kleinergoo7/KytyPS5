@@ -24,6 +24,9 @@
 #include <cstring>
 #include <thread>
 
+#ifndef XBYAK_NO_EXCEPTION
+#define XBYAK_NO_EXCEPTION
+#endif
 #include <xbyak/xbyak.h>
 
 namespace Loader::DemonsSoulsLoaderGuard {
