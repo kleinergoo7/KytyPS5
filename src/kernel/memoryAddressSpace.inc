@@ -1476,6 +1476,7 @@ private:
 			SetFailure(failure_reason, FailureReason::FixedMapViewFailed);
 			return nullptr;
 		}
+		VirtualMemory::WriteWatchMapped(vaddr, size, mode);
 		return ptr;
 	}
 
@@ -1483,6 +1484,7 @@ private:
 	// process-lifetime guest reservation.
 	static bool UnmapViewPreservePlaceholder(void* vaddr, uint64_t size) {
 		void* ptr = mmap(vaddr, size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+		VirtualMemory::WriteWatchUnmapped(reinterpret_cast<uint64_t>(vaddr), size);
 		return ptr != MAP_FAILED && ptr == vaddr;
 	}
 
@@ -1754,7 +1756,7 @@ public:
 			const auto end   = std::min(run.address + run.size, vaddr + size);
 			if (begin >= end) continue;
 			if (at < begin && !ProtectMappedUnlocked(at, begin - at, mode)) return false;
-			if (!ProtectMappedUnlocked(begin, end - begin, run.mode)) return false;
+			if (!ProtectMappedUnlocked(begin, end - begin, run.mode, true)) return false;
 			at = end;
 		}
 		return at >= vaddr + size || ProtectMappedUnlocked(at, vaddr + size - at, mode);
@@ -1782,7 +1784,7 @@ public:
 			if (LiveCensus::g_render) LiveCounters::Add(LiveCounters::AddressSpaceWaitKtRender, waited);
 		}
 		WaitNotBusy(lock, vaddr, size);
-		return ProtectMappedUnlocked(vaddr, size, mode);
+		return ProtectMappedUnlocked(vaddr, size, mode, true);
 	}
 
 #if KYTY_PLATFORM == KYTY_PLATFORM_WINDOWS
@@ -2249,7 +2251,8 @@ private:
 		m_busy.erase(it);
 	}
 
-	bool ProtectMappedUnlocked(uint64_t vaddr, uint64_t size, VirtualMemory::Mode mode) {
+	// `trackers`: the GPU trackers' protection (VirtualMemory::ProtectWriteWatch), not the guest's.
+	bool ProtectMappedUnlocked(uint64_t vaddr, uint64_t size, VirtualMemory::Mode mode, bool trackers = false) {
 		const auto end = vaddr + size;
 		auto       it  = m_mapped.upper_bound(vaddr);
 		if (it != m_mapped.begin()) {
@@ -2268,7 +2271,8 @@ private:
 			const auto flush_run = [&]() {
 				if (run_start >= run_end) return true;
 				LiveTrace::SlowOsCallScope slow(LiveTrace::OsProtect, run_start, run_end - run_start);
-				return VirtualMemory::Protect(run_start, run_end - run_start, mode);
+				return trackers ? VirtualMemory::ProtectWriteWatch(run_start, run_end - run_start, mode)
+				                : VirtualMemory::Protect(run_start, run_end - run_start, mode);
 			};
 			for (; it != m_mapped.end() && it->second.vaddr < end; ++it) {
 				const auto& region      = it->second;
@@ -2292,7 +2296,7 @@ private:
 			const auto  range_end   = std::min(end, region.vaddr + region.size);
 			if (range_start >= range_end) continue;
 			LiveTrace::SlowOsCallScope slow(LiveTrace::OsProtect, range_start, range_end - range_start);
-			if (!ProtectView(range_start, range_end - range_start, mode, region.type)) {
+			if (!ProtectView(range_start, range_end - range_start, mode, region.type, trackers)) {
 				return false;
 			}
 		}
@@ -2301,7 +2305,7 @@ private:
 
 	// A guest mapping's protection; on Windows with KYTY_READ_GUARD, a view's no access as a read guard
 	// (kyty_local_read_guard: private memory is no section's), but for the pages read back lately (NoteRead).
-	bool ProtectView(uint64_t vaddr, uint64_t size, VirtualMemory::Mode mode, MappingType type) {
+	bool ProtectView(uint64_t vaddr, uint64_t size, VirtualMemory::Mode mode, MappingType type, bool trackers) {
 #if KYTY_PLATFORM == KYTY_PLATFORM_WINDOWS
 		if (mode == VirtualMemory::Mode::NoAccess && type == MappingType::Backing &&
 		    kyty_local_read_guard.load(std::memory_order_relaxed) != 0) {
@@ -2340,7 +2344,7 @@ private:
 			return set(at, end, PAGE_GUARD | PAGE_READONLY);
 		}
 #endif
-		return VirtualMemory::Protect(vaddr, size, mode);
+		return trackers ? VirtualMemory::ProtectWriteWatch(vaddr, size, mode) : VirtualMemory::Protect(vaddr, size, mode);
 	}
 
 	// A free entry consumed with its placeholder split later (SplitPlaceholders, outside the lock).
@@ -2874,6 +2878,7 @@ private:
 		// mappings and never acquires a new guest address.
 		void* ptr = mmap(reinterpret_cast<void*>(vaddr), size, PROT_NONE,
 		                 MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+		VirtualMemory::WriteWatchUnmapped(vaddr, size);
 		EXIT_IF(ptr == MAP_FAILED || reinterpret_cast<uint64_t>(ptr) != vaddr);
 #else
 		(void)vaddr;
