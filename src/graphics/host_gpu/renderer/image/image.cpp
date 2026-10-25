@@ -339,15 +339,12 @@ static bool ZeroNewImages() {
 	return on;
 }
 
-static void ZeroNewImage(vk::Image image, const ImageInfo& info, vk::CommandBuffer command_buffer) {
-	const bool  depth   = DepthAspectTransferFormat(info.pixel_format) != vk::Format::eUndefined;
-	const auto  format  = info.pixel_format;
-	const bool  stencil = format == vk::Format::eD32SfloatS8Uint || format == vk::Format::eD24UnormS8Uint ||
-	                     format == vk::Format::eD16UnormS8Uint;
+// `aspect`: every aspect of the image's format (Image::FullAspectMask: X8D24 is depth alone and S8 stencil alone, both
+// cleared as depth/stencil).
+static void ZeroNewImage(vk::Image image, vk::ImageAspectFlags aspect, vk::CommandBuffer command_buffer) {
 	vk::ImageSubresourceRange whole {};
-	whole.aspectMask = depth ? (stencil ? vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil
-	                                    : vk::ImageAspectFlags {vk::ImageAspectFlagBits::eDepth})
-	                         : vk::ImageAspectFlags {vk::ImageAspectFlagBits::eColor};
+	whole.aspectMask = aspect;
+	const bool depth = !(aspect & vk::ImageAspectFlagBits::eColor);
 	whole.levelCount = VK_REMAINING_MIP_LEVELS;
 	whole.layerCount = VK_REMAINING_ARRAY_LAYERS;
 	vk::ImageMemoryBarrier2 barrier {};
@@ -380,7 +377,7 @@ void Image::Transit(vk::ImageLayout destination_layout, vk::AccessFlags2 destina
 	    destination_layout != vk::ImageLayout::eUndefined && backing.image && ZeroNewImages() &&
 	    vk::blockExtent(info.pixel_format)[0] == 1) {
 		m_scheduler.EndRendering();
-		ZeroNewImage(backing.image, info, command_buffer);
+		ZeroNewImage(backing.image, FullAspectMask(info.pixel_format), command_buffer);
 		backing.state = {vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite,
 		                 vk::ImageLayout::eTransferDstOptimal};
 	}
