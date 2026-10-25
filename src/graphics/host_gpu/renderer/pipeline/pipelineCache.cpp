@@ -1722,7 +1722,10 @@ struct PipelineCache::ProgramCache {
 				entry = programs.try_emplace(lookup_key, std::move(*group->plan)).first;
 				entry->second.source_digest = group->source;
 				entry->second.prefetched = std::move(group->modules);
-				entry->second.plan_spilled = {prefetch->spill, group->plan_offset, group->plan_bytes, group->plan_raw};
+				// (Bytes written without the linear SRT plan LoadSpilledPlan made since are not the plan's now: a sweep
+				// writes its own, else a plan brought back would not match the linear SRT plan kept for it.)
+				if (!group->plan_linear_dropped)
+					entry->second.plan_spilled = {prefetch->spill, group->plan_offset, group->plan_bytes, group->plan_raw};
 				entry->second.plan_use     = plan_clock;
 				group->plan.reset();
 			}
