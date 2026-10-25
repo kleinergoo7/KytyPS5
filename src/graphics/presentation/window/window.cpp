@@ -361,10 +361,30 @@ static void GameEventFinger([[maybe_unused]] const EventFinger& f) {
 #endif
 }
 
+// The PS button (an Xbox pad's Guide button) held for two seconds quits, as Close Game on the PS5's home screen (issue
+// #203: pads and Steam Big Picture had no way out): the game has no use for it, and a short press does nothing.
+static SDL_TimerID g_quit_hold = 0;
+
+static uint32_t QuitAfterHold(uint32_t /*interval*/, void* /*param*/) {
+	LOGF("Controller: the PS button held for 2 s, quitting\n");
+	SDL_Event quit {};
+	quit.type = SDL_QUIT;
+	(void)SDL_PushEvent(&quit);
+	return 0;
+}
+
 static void GameEventController([[maybe_unused]] const EventController& f) {
 	// (A new mapping for a connected controller, e.g. from Steam: its buttons arrive mapped from then on.)
 	if (f.remapped) {
 		return;
+	}
+
+	if (f.button == SDL_CONTROLLER_BUTTON_GUIDE && (f.down || f.up)) {
+		if (f.down && g_quit_hold == 0) g_quit_hold = SDL_AddTimer(2000, QuitAfterHold, nullptr);
+		if (f.up && g_quit_hold != 0) {
+			(void)SDL_RemoveTimer(g_quit_hold);
+			g_quit_hold = 0;
+		}
 	}
 
 #ifdef KYTY_DBG_INPUT
@@ -882,7 +902,8 @@ static void WindowCreate(WindowContext& context) {
 	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
 #endif
 
-	if (SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0) {
+	// (The timers: the PS button's hold to quit, QuitAfterHold.)
+	if (SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_TIMER) < 0) {
 		EXIT("%s\n", SDL_GetError());
 	}
 	HostInputInit();

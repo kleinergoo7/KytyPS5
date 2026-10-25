@@ -336,7 +336,9 @@ There are two levels of preparation, both specific to the graphics card and driv
 
 ## Controls
 
-A gamepad is recommended (DualSense, DualShock 4 and Xbox controllers work; just plug them in).
+A gamepad is recommended (DualSense, DualShock 4 and Xbox controllers work; just plug them in). An Xbox pad's View
+button is the touchpad. Holding the PS button (an Xbox pad's Guide button) for two seconds quits the game, as closing
+the window does (in Steam Big Picture, Steam keeps that button for its overlay unless set to pass it to the game).
 
 Default keyboard layout:
 
