@@ -52,6 +52,7 @@
 #include <fmt/format.h>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <vulkan/vk_platform.h>
 
@@ -362,9 +363,10 @@ static void GameEventFinger([[maybe_unused]] const EventFinger& f) {
 }
 
 // The PS button (an Xbox pad's Guide button) held for two seconds quits, as Close Game on the PS5's home screen (issue
-// #203: pads and Steam Big Picture had no way out): the game has no use for it, and a short press does nothing. So do
-// Back and Start held together (an Xbox pad's View and Menu, a PlayStation pad's Create and Options), for a pad whose
-// Guide button Steam or Windows' Game Bar takes.
+// #203: pads and Steam Big Picture had no way out): the game has no use for it, and a short press does nothing. With
+// KYTY_PAD_QUIT=backstart (or both) so do Back and Start held together (an Xbox pad's View and Menu, a PlayStation pad's
+// Create and Options), for a pad whose Guide button Steam or Windows' Game Bar takes; not by default, since some pads
+// switch their own mode (XInput, Switch) on that hold. off: neither. A pad that leaves cancels its holds.
 static SDL_TimerID g_quit_hold = 0, g_quit_combo = 0;
 
 static uint32_t QuitAfterHold(uint32_t /*interval*/, void* what) {
@@ -375,13 +377,29 @@ static uint32_t QuitAfterHold(uint32_t /*interval*/, void* what) {
 	return 0;
 }
 
+static bool PadQuits(bool combo) {
+	static const std::string_view mode = [] {
+		const char* value = std::getenv("KYTY_PAD_QUIT");
+		return std::string_view(value != nullptr ? value : "guide");
+	}();
+	return combo ? mode == "backstart" || mode == "both" : mode != "off" && mode != "backstart";
+}
+
+static void CancelQuitHolds() {
+	for (auto* timer: {&g_quit_hold, &g_quit_combo}) {
+		if (*timer != 0) (void)SDL_RemoveTimer(*timer);
+		*timer = 0;
+	}
+}
+
 static void GameEventController([[maybe_unused]] const EventController& f) {
 	// (A new mapping for a connected controller, e.g. from Steam: its buttons arrive mapped from then on.)
 	if (f.remapped) {
 		return;
 	}
 
-	if (f.button == SDL_CONTROLLER_BUTTON_GUIDE && (f.down || f.up)) {
+	if (f.removed) CancelQuitHolds();
+	if (f.button == SDL_CONTROLLER_BUTTON_GUIDE && (f.down || f.up) && PadQuits(false)) {
 		if (f.down && g_quit_hold == 0)
 			g_quit_hold = SDL_AddTimer(2000, QuitAfterHold, const_cast<char*>("the PS button"));
 		if (f.up && g_quit_hold != 0) {
@@ -389,7 +407,8 @@ static void GameEventController([[maybe_unused]] const EventController& f) {
 			g_quit_hold = 0;
 		}
 	}
-	if ((f.button == SDL_CONTROLLER_BUTTON_BACK || f.button == SDL_CONTROLLER_BUTTON_START) && (f.down || f.up)) {
+	if ((f.button == SDL_CONTROLLER_BUTTON_BACK || f.button == SDL_CONTROLLER_BUTTON_START) && (f.down || f.up) &&
+	    PadQuits(true)) {
 		auto*      pad  = SDL_GameControllerFromInstanceID(f.id);
 		const bool both = f.down && pad != nullptr && SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_BACK) != 0 &&
 		                  SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_START) != 0;

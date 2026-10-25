@@ -340,8 +340,10 @@ There are two levels of preparation, both specific to the graphics card and driv
 
 A gamepad is recommended (DualSense, DualShock 4 and Xbox controllers work; just plug them in). An Xbox pad's View
 button is the touchpad. Holding the PS button (an Xbox pad's Guide button) for two seconds quits the game, as closing
-the window does. So does holding Create and Options together (an Xbox pad's View and Menu) for two seconds, for when
-Steam or Windows' Game Bar takes the Guide button.
+the window does (in Steam Big Picture, Steam keeps that button for its overlay unless set to pass it to the game).
+Where Steam or Windows' Game Bar takes that button, `-Set KYTY_PAD_QUIT=both` makes holding Create and Options together
+(an Xbox pad's View and Menu) for two seconds quit too. It is off by default because some pads switch their own mode on
+that hold. `-Set KYTY_PAD_QUIT=off` turns off quitting from the pad.
 
 Default keyboard layout:
 
