@@ -652,7 +652,8 @@ private:
 	HW::ScreenViewport m_screen; // (as it was)
 };
 
-// KYTY_OUTPUT_HEIGHT above 1080 (DemonsSoulsHdOutput::InterfaceScaled): the game lays its interface out in the HD
+// KYTY_OUTPUT_HEIGHT above 1080 with KYTY_OUTPUT_LAYOUT=hd (DemonsSoulsHdOutput::InterfaceScaled; by default the game
+// lays out its 4K layout at the output's size, nothing scaled here): the game lays its interface out in the HD
 // layout's 1920x1080 and turns the layout's pixels into clip coordinates by the canvas's own size (2560x1440 for 1440),
 // the viewport the whole canvas: the HUD, the menus, the movies and the loading screens showed at their HD pixels, in
 // the canvas's top left corner. Their draws into a target of the output's size get the viewport scaled by output /
