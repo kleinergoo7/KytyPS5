@@ -1820,8 +1820,11 @@ public:
 	// before its guard was back (1 in ~90 guard faults at the Tower of Latria, whose lights went out: issues #158, #159).
 	// No access keeps every reader out, and its blue screen (0x1A/0x41202, issues #5, #50) needs a no-access page whose
 	// memory Windows took out of RAM, which a locked page never is. The pages read back are few (~1,100 a second at
-	// Latria): the rest of the watched memory keeps its guards.
+	// Latria): the rest of the watched memory keeps its guards. Not while the PC is short of memory (HotReadsPressure):
+	// the lock holds the page of the backing view, not the guest view's page tables, and a 16 GB PC with 0.9 GB left
+	// blue-screened (0x1A) with these pages the only ones of the views without access (issue #91).
 	void NoteRead(uint64_t vaddr) {
+		if (m_hot_pressure.load(std::memory_order_relaxed)) return;
 		constexpr uint64_t Page    = 0x1000;
 		const uint64_t     page    = vaddr & ~(Page - 1);
 		auto*              backing = const_cast<uint8_t*>(m_backing->BackingPointer(page, Page));
@@ -1852,27 +1855,57 @@ public:
 		m_hot.emplace(page, HotRead {backing, now});
 	}
 
+	// Whether the PC is short of memory for no-access pages (NoteRead): less than KYTY_HOT_READS_MIN_AVAIL_MB (default
+	// 2048; 0: never) of RAM left, until 1 GiB more is. The blue screens came with less than 1.5 GB left (issues #5, #47,
+	// #50, #91; the laptop's and this desktop's under a memory hog), when Windows takes pages and page tables out of RAM.
+	bool HotReadsPressure() {
+		static const uint64_t minimum = [] {
+			const char* value = std::getenv("KYTY_HOT_READS_MIN_AVAIL_MB");
+			return (value != nullptr && *value != '\0' ? std::strtoull(value, nullptr, 10) : uint64_t {2048}) << 20u;
+		}();
+		bool pressure = m_hot_pressure.load(std::memory_order_relaxed);
+		if (minimum == 0) return pressure;
+		const uint64_t available = LocalPlatform::AvailablePhysicalMemory();
+		if (available == 0) return pressure;
+		const bool next = pressure ? available < minimum + (uint64_t {1} << 30u) : available < minimum;
+		if (next != pressure) {
+			m_hot_pressure.store(next, std::memory_order_relaxed);
+			static std::atomic<uint32_t> reports {0};
+			if (reports.fetch_add(1, std::memory_order_relaxed) < 8)
+				std::printf("Memory: %llu MiB left on the PC: the pages read back %s\n",
+				            static_cast<unsigned long long>(available >> 20u),
+				            next ? "get guards like the rest until there is more (KYTY_HOT_READS_MIN_AVAIL_MB)"
+				                 : "keep no access again");
+		}
+		return next;
+	}
+
 	// The pages not read back for a while (HotReadsKeepMs) go back to guards, their backing pages unlocked: twice a
 	// second, under the lock held exclusively (no protection of the trackers changes meanwhile) when it is free at once.
-	// The render thread's (GpuResourceManager::RunCollectors).
+	// While the PC is short of memory, all of them, every flip until none is left. The render thread's
+	// (GpuResourceManager::RunCollectors).
 	void CoolHotReads() {
 		constexpr uint64_t Page = 0x1000;
 		const uint64_t     now  = GetTickCount64();
-		if (now - m_hot_cooled < 500) return;
-		m_hot_cooled = now;
+		if (now - m_hot_cooled < 500 && !m_hot_draining) return;
+		m_hot_cooled        = now;
+		const bool pressure = kyty_local_read_guard.load(std::memory_order_relaxed) != 0 &&
+		                      kyty_local_hot_reads.load(std::memory_order_relaxed) != 0 && HotReadsPressure();
 		{
 			std::lock_guard hot_lock(m_hot_mutex);
-			if (std::none_of(m_hot.begin(), m_hot.end(),
-			                 [&](const auto& hot) { return now - hot.second.noted >= HotReadsKeepMs; }))
+			m_hot_draining = pressure && !m_hot.empty();
+			if (!m_hot_draining && std::none_of(m_hot.begin(), m_hot.end(), [&](const auto& hot) {
+				    return now - hot.second.noted >= HotReadsKeepMs;
+			    }))
 				return;
 		}
 		std::unique_lock lock(m_mutex, std::try_to_lock);
 		if (!lock.owns_lock()) return;
 		std::lock_guard hot_lock(m_hot_mutex);
 		uint64_t        cooled = 0;
-		for (auto it = m_hot.begin(); it != m_hot.end() && cooled < 512;) {
+		for (auto it = m_hot.begin(); it != m_hot.end() && cooled < (pressure ? 2048u : 512u);) {
 			const auto page = it->first;
-			if (now - it->second.noted < HotReadsKeepMs || BusyUnlocked(page, Page)) {
+			if ((!pressure && now - it->second.noted < HotReadsKeepMs) || BusyUnlocked(page, Page)) {
 				++it;
 				continue;
 			}
@@ -1888,6 +1921,7 @@ public:
 			it = m_hot.erase(it);
 			++cooled;
 		}
+		m_hot_draining = pressure && !m_hot.empty();
 		LiveCounters::Add(LiveCounters::ReadHotCools, cooled);
 	}
 
@@ -2312,7 +2346,8 @@ private:
 				return begin >= until ||
 				       VirtualProtect(reinterpret_cast<void*>(begin), until - begin, protection, &old) != 0;
 			};
-			if (kyty_local_hot_reads.load(std::memory_order_relaxed) == 0) return set(vaddr, end, PAGE_GUARD | PAGE_READONLY);
+			if (kyty_local_hot_reads.load(std::memory_order_relaxed) == 0 || m_hot_pressure.load(std::memory_order_relaxed))
+				return set(vaddr, end, PAGE_GUARD | PAGE_READONLY);
 			thread_local std::vector<std::pair<uint64_t, uint64_t>> hot;
 			hot.clear();
 			{
@@ -2923,6 +2958,8 @@ private:
 	std::map<uint64_t, HotRead>  m_hot;
 	std::map<uint8_t*, uint32_t> m_hot_locks;
 	uint64_t                     m_hot_cooled = 0; // (CoolHotReads: one thread)
+	bool                         m_hot_draining = false; // (CoolHotReads: short of memory, pages left to cool)
+	std::atomic<bool>            m_hot_pressure {false}; // HotReadsPressure
 #endif
 };
 
