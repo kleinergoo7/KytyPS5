@@ -299,10 +299,12 @@ stutter again.
 
 There are two levels of preparation, both specific to the graphics card and driver:
 
-1. **Background shader preparation (automatic)**: after every launch, the whole game's shaders are
-   translated in the background while the top right corner shows the progress. It takes less than
-   half a minute on the test PC and a few minutes on PCs with fewer threads, with a high CPU load
-   meanwhile. The first launch makes the input files it needs.
+1. **Background shader preparation (automatic)**: the first launch translates the whole game's shaders
+   in the background while the top right corner shows the progress. It takes less than half a minute
+   on the test PC and a few minutes on PCs with fewer threads, with a high CPU load meanwhile. The
+   translations are kept in `_PipelineCache\static\<title>_<version>.prefetch` (1-2 GB), and later
+   launches read them from there in about a second. After an emulator update or a new graphics driver
+   they are translated once more. The first launch also makes the input files it needs.
 2. **Full precompile (recommended once)**: compiles every shader and pipeline of the game into
    `_PipelineCache`. Afterwards shader stutters are essentially gone. With a recent NVIDIA driver the
    result is a store the game reads pipeline by pipeline (`<title>_<version>.binaries`, about 2 GB, nothing to
