@@ -297,6 +297,20 @@ void Install(Program* program) {
 		const auto output = RenderSizeFor(OutputHeight, aspect);
 		if (InstallWideOutput(*program, mode, output.width)) {
 			g_wide_output = output.width;
+			// The display buffers as wide (as the HD output makes them its size): the game copies its output into them for
+			// the frames without the 3D, which their 3840x2160 squeezed - the movies by 16:9 over the output's aspect
+			// (issue #198, found by Psychowarden).
+			const auto buffers = GuestCode::Find(*program, GuestCode::Pattern(DemonsSoulsHdOutput::DisplayBuffer), 3);
+			if (buffers.size() == 2) {
+				const uint32_t size[2] {output.width, OutputHeight};
+				for (const auto site: buffers) {
+					std::memcpy(reinterpret_cast<void*>(site + 1), &size[0], sizeof(uint32_t));
+					std::memcpy(reinterpret_cast<void*>(site + 6), &size[1], sizeof(uint32_t));
+				}
+			} else {
+				std::printf("Demon's Souls render size: the display buffers' size of a known build not found; the movies "
+				            "squeezed into 3840x2160\n");
+			}
 		} else {
 			std::printf("Demon's Souls render size: the wide output's settings of a known build not found; the 3D squeezed "
 			            "into the 3840x2160 output\n");
