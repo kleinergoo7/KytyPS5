@@ -42,6 +42,10 @@ namespace DemonsSoulsHdOutput {
 // screen size left at 3840x2160 put what lay past the output's size in its layout outside it: the souls, the items,
 // the prompts.)
 [[nodiscard]] bool InterfaceAtOutput();
+// With InterfaceAtOutput and KYTY_RENDER_ASPECT wider than 16:9 (KYTY_WIDE_OUTPUT=0: squeezed into 16:9 instead): the
+// width of the wide output at KYTY_OUTPUT_HEIGHT (3416x1440 at 21:9; DemonsSoulsRenderSize makes it, issue #199), the
+// display buffers as wide, the interface in its 16:9 part (2560x1440); 0 otherwise.
+[[nodiscard]] uint32_t WideOutputWidth();
 void Install(Program* program);
 // Install found its places and took the game to the HD path.
 [[nodiscard]] bool Active();

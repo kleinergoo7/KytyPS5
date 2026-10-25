@@ -215,14 +215,18 @@ void Install(Program* program) {
 	// Its own wide output is not made (InstallWideOutput sizes that output already).
 	const char* wide_output = std::getenv("KYTY_WIDE_OUTPUT");
 	uint32_t    squeezed_width = 0;
-	if (hd_pro && aspect != 0.0 && wide_output != nullptr && std::strcmp(wide_output, "0") == 0) {
+	// KYTY_OUTPUT_HEIGHT's output above 1080 with the interface in its 4K layout: the wide output at that height instead
+	// (DemonsSoulsHdOutput::WideOutputWidth, issue #199: 3416x1440 at 21:9 for a 1440p ultrawide screen, not 5120x2160
+	// scaled down).
+	const uint32_t wide_at_height = hd_pro && aspect != 0.0 ? DemonsSoulsHdOutput::WideOutputWidth() : 0;
+	if (wide_at_height == 0 && hd_pro && aspect != 0.0 && wide_output != nullptr && std::strcmp(wide_output, "0") == 0) {
 		const auto fitted = static_cast<uint32_t>(std::lround(pro_width / aspect / 8.0)) * 8u;
 		if (fitted != requested)
 			std::printf("Demon's Souls render size: %u at the wider aspect squeezed into the %ux%u output: %ux%u instead\n",
 			            requested, pro_width, pro_height, pro_width, fitted);
 		requested      = fitted;
 		squeezed_width = pro_width;
-	} else if (hd_pro && aspect != 0.0) {
+	} else if (wide_at_height == 0 && hd_pro && aspect != 0.0) {
 		std::printf("Demon's Souls render size: a wider aspect with the %ux%u output (the upscaler's, KYTY_HD_OUTPUT or "
 		            "KYTY_OUTPUT_HEIGHT) only squeezed (KYTY_WIDE_OUTPUT=0); 16:9\n",
 		            pro_width, pro_height);
@@ -317,10 +321,13 @@ void Install(Program* program) {
 		}
 	}
 	if (hd_pro) {
-		// The PS5 Pro path's 1080p output (the wide output's places at 1920x1080), or KYTY_OUTPUT_HEIGHT's.
-		if (!InstallWideOutput(*program, mode, pro_width, pro_height))
+		// The PS5 Pro path's 1080p output (the wide output's places at 1920x1080), or KYTY_OUTPUT_HEIGHT's (as wide as the
+		// aspect at that height: wide_at_height).
+		if (!InstallWideOutput(*program, mode, wide_at_height != 0 ? wide_at_height : pro_width, pro_height))
 			std::printf("Demon's Souls render size: the PS5 Pro path's output settings of a known build not found; its "
 			            "4K output kept\n");
+		else if (wide_at_height != 0)
+			g_wide_output = wide_at_height;
 	}
 	// Its super resolution from this render height on (the game's own 1080 at least otherwise): the 1080p output's, and
 	// the 4K output's 720 (DLSS's ultra performance).

@@ -144,7 +144,8 @@ With an "Aspect ratio" wider than 16:9, DLSS makes the picture at its full width
 2560x1080 at render height 1080), and the game finishes it at that size, with the HUD at the screen's edges,
 instead of a 3840x2160 picture widened on the screen. On an RTX 5090 at Boletaria's start that ran at 64.5 fps,
 the game's TAA at 21:9 at 59.3. Screens without the 3D (movies, the title, loading) are stretched to the
-width, as without DLSS.
+width, as without DLSS. With "Game output: 1440p" that picture is made at 1440 lines instead (3416x1440 at 21:9, for
+a 3440x1440 screen): the game's post-processing at the screen's size rather than at 5120x2160 scaled down.
 "Game output" ("Automatic" by default: 1080p for a 16:9 game window, or screen in full screen, at most 1080 lines
 high, else 4K as on the PS5) with "1080p" runs the game's own HD mode, the one a PS5 takes on
 a 1080p TV: its post-processing and HUD at 1920x1080 instead of 3840x2160 scaled down to the window afterwards,
