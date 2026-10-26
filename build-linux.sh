@@ -36,6 +36,12 @@ DEPS_ARGS=()
 [ -f "$ROOT/_Build/deps/xbyak-src/CMakeLists.txt" ] && DEPS_ARGS+=(-DFETCHCONTENT_SOURCE_DIR_XBYAK="$ROOT/_Build/deps/xbyak-src")
 [ -f "$ROOT/_Build/deps/zydis-src/CMakeLists.txt" ] && DEPS_ARGS+=(-DFETCHCONTENT_SOURCE_DIR_ZYDIS="$ROOT/_Build/deps/zydis-src")
 
+# ccache when found (KYTY_CCACHE=0 disables it), so rebuilds share cache entries with other builds.
+CCACHE_ARGS=()
+if [ "${KYTY_CCACHE:-1}" != 0 ] && command -v ccache >/dev/null 2>&1; then
+	CCACHE_ARGS+=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+fi
+
 if [ ! -f "$BUILD/build.ninja" ]; then
 	echo "Configuring $BUILD (-march=$MARCH)"
 	cmake -S "$ROOT" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
@@ -44,7 +50,7 @@ if [ ! -f "$BUILD/build.ninja" ]; then
 		-DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -march=$MARCH" \
 		-DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -march=$MARCH -flto=thin" \
 		-DCMAKE_EXE_LINKER_FLAGS="-flto=thin" \
-		"${DEPS_ARGS[@]}" ${KYTY_CMAKE_ARGS:-}
+		"${DEPS_ARGS[@]}" "${CCACHE_ARGS[@]}" ${KYTY_CMAKE_ARGS:-}
 fi
 
 [ $# -gt 0 ] || set -- kyty_emulator kyty_launcher

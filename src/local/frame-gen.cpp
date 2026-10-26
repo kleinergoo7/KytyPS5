@@ -1030,7 +1030,7 @@ FgRefusal          g_fg_refused;
 // Since when the frames' render size has been half the feature's or less, the backbuffer the same (zero: not now).
 std::chrono::steady_clock::time_point g_fg_small_since {};
 vk::Extent2D      g_fg_backbuffer {}, g_fg_render {};
-vk::Format        g_fg_format = vk::Format::eUndefined
+vk::Format        g_fg_format = vk::Format::eUndefined;
 
 // Matrices as Streamline and NGX take them: row-major, row vectors (p' = p * M), 16 floats.
 using RowMatrix = std::array<float, 16>;
