@@ -22,6 +22,9 @@ struct CompileOptions {
 	bool                        enable_lod_stats           = false;
 	bool                        table_mode                 = false; // IR::EnterTableMode
 	const char*                 dump_label                 = nullptr;
+	// Without VK_KHR_fragment_shader_barycentric, raw per-vertex pixel inputs are
+	// approximated from the host-interpolated value.
+	bool                        fragment_shader_barycentric = true;
 	std::span<const uint32_t>   user_data;
 	std::span<const uint32_t>   back_code;
 	ShaderStageInputInfo        input_info;

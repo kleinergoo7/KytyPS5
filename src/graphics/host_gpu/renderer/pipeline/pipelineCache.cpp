@@ -2135,6 +2135,7 @@ struct PipelineCache::ProgramCache {
 		options.dump_label  = label;
 		options.input_info  = stage_input;
 		options.scratch_dwords = input_info.scratch_size_dwords;
+		options.fragment_shader_barycentric = fragment_shader_barycentric;
 		if constexpr (std::is_same_v<InputInfo, ShaderVertexInputInfo>) {
 			options.user_data_base = 8;
 			if (stage == ShaderType::Mesh) {
@@ -2702,7 +2703,8 @@ struct PipelineCache::ProgramCache {
 		return it == recorded_programs.end() ? LocalShaderWarmup::NoShader : it->second;
 	}
 
-	explicit ProgramCache(vk::Device device): device(device) {
+	ProgramCache(vk::Device device, bool fragment_shader_barycentric)
+	    : device(device), fragment_shader_barycentric(fragment_shader_barycentric) {
 		lookup_key.static_state.reserve(MaxStaticKeyWords);
 	}
 	~ProgramCache() {
@@ -2738,6 +2740,7 @@ struct PipelineCache::ProgramCache {
 	    by_program;
 	ProgramKey                                                  lookup_key;
 	vk::Device                                                  device;
+	bool                                                        fragment_shader_barycentric;
 	uint64_t                                                    next_shader_id = 0;
 };
 
@@ -3247,7 +3250,8 @@ void PipelineCache::ReportObjects(uint64_t id) const {
 }
 
 PipelineCache::PipelineCache(GraphicContext& graphics)
-    : m_graphics(graphics), m_program_cache(std::make_unique<ProgramCache>(graphics.device)) {
+    : m_graphics(graphics), m_program_cache(std::make_unique<ProgramCache>(
+                                graphics.device, graphics.fragment_shader_barycentric_enabled)) {
 	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
 	g_live_pipeline_cache          = this;
 	LiveCounters::g_objects_report = [](uint64_t id) {

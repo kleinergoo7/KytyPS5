@@ -798,6 +798,7 @@ CompileResult CompileProgram(TranslateResult translated, const CompileOptions& o
 	info_options.vertex  = vertex;
 	info_options.pixel   = pixel;
 	info_options.compute = compute;
+	info_options.fragment_shader_barycentric = options.fragment_shader_barycentric;
 	IR::CollectShaderInfo(ir, info_options);
 	if (options.table_mode) {
 		IR::EnterTableMode(ir);
