@@ -1921,10 +1921,6 @@ bool IsNvidiaSigned(const std::wstring& path) {
 	return IsSignedBy(path, L"NVIDIA Corporation");
 }
 
-bool IsAmdSigned(const std::wstring& path) {
-	return IsSignedBy(path, L"Advanced Micro Devices");
-}
-
 static bool IsSignedBy(const std::wstring& path, const wchar_t* signer_name) {
 	WINTRUST_FILE_INFO file {};
 	file.cbStruct      = sizeof(file);
@@ -2479,10 +2475,6 @@ bool QuerySharedGpuMemory(uint64_t* /*usage*/) {
 }
 
 bool IsNvidiaSigned(const std::wstring& /*path*/) {
-	return false;
-}
-
-bool IsAmdSigned(const std::wstring& /*path*/) {
 	return false;
 }
 

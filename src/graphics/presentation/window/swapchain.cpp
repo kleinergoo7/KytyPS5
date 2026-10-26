@@ -568,7 +568,7 @@ struct Presenter::Impl {
 				std::snprintf(title.data(), title.size(), "%.0f FPS",
 				              (seconds >= 1.0 ? hud_frames / seconds : game) * presents);
 				std::snprintf(detail.data(), detail.size(), "%s Frame Generation %ux  |  game %.0f fps",
-				              FrameGen::UsesFsr() || FsrNative::InterpolationRequested() ? "FSR 3" : "DLSS", presents, game);
+				              FsrNative::InterpolationRequested() ? "FSR 3" : "DLSS", presents, game);
 			} else {
 				std::snprintf(title.data(), title.size(), "%.0f FPS", game);
 			}
@@ -907,7 +907,7 @@ struct Presenter::Impl {
 		FrameGen::NotePresented(shown + 1);
 		presented_overlay_revision.store(overlay_visual.revision, std::memory_order_release);
 		window.UpdateTitle(shown + (ok ? 1u : 0u),
-		                   FsrNative::InterpolationRequested() || FrameGen::UsesFsr() ? "FSR 3 FG" : "DLSS-G");
+		                   FsrNative::InterpolationRequested() ? "FSR 3 FG" : "DLSS-G");
 		frames.Release(&frame, true);
 		return true;
 	}

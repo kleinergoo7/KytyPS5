@@ -731,9 +731,6 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 	std::array<vk::DeviceQueueCreateInfo, 3> queue_create_infos {queue_create_info, queue_create_info, queue_create_info};
 	uint32_t                                 queue_create_count = 1;
 	graphics.readback_family                                    = static_cast<uint32_t>(-1);
-	graphics.fsr_compute_family                                 = static_cast<uint32_t>(-1);
-	graphics.fsr_present_family                                 = static_cast<uint32_t>(-1);
-	bool fsr_queues                                             = false;
 #if defined(_WIN32)
 	// A second graphics-family queue for presents (GraphicContext::present_queue).
 	{
@@ -745,54 +742,8 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 			queue_create_infos[0].queueCount = 2;
 			graphics.present_queue_created   = true;
 		}
-		// KYTY_FRAMEGEN_BACKEND=fsr: queues of FSR's swapchain of its own. A third graphics-family queue (its presents)
-		// and two of a compute-only family (async compute, image acquires); with fewer graphics queues (an Intel Arc has
-		// one, issue #170) its presents on a third queue of that compute family, which must then be able to present (AMD
-		// allows a compute present queue the engine does not use, and the engine's own queue as the game queue:
-		// VkFrameInterpolationInfoFFX). KYTY_FSR_COMPUTE_PRESENT=1: that layout on any GPU, with one graphics queue (a
-		// test).
-		if (Libs::Graphics::FrameGen::UsesFsr()) {
-			static const bool compute_present_forced = [] {
-				const char* value = std::getenv("KYTY_FSR_COMPUTE_PRESENT");
-				return value != nullptr && value[0] == '1';
-			}();
-			if (compute_present_forced) {
-				queue_create_infos[0].queueCount = 1;
-				graphics.present_queue_created   = false;
-			}
-			const bool graphics_present =
-			    !compute_present_forced && graphics.present_queue_created && families[queue_family].queueCount >= 3;
-			const uint32_t needed = graphics_present ? 2 : 3;
-			for (uint32_t family = 0; family < family_count; ++family) {
-				const auto flags = families[family].queueFlags;
-				if (family == queue_family || families[family].queueCount < needed || !(flags & vk::QueueFlagBits::eCompute) ||
-				    (flags & vk::QueueFlagBits::eGraphics))
-					continue;
-				vk::Bool32 presents = VK_FALSE;
-				if (!graphics_present &&
-				    (surface == nullptr || physical_device.getSurfaceSupportKHR(family, surface, &presents) != vk::Result::eSuccess ||
-				     presents == VK_FALSE))
-					continue;
-				if (graphics_present) queue_create_infos[0].queueCount = 3;
-				queue_create_infos[queue_create_count].queueFamilyIndex = family;
-				queue_create_infos[queue_create_count].queueCount       = needed;
-				++queue_create_count;
-				graphics.fsr_compute_family = family;
-				graphics.fsr_present_family = graphics_present ? queue_family : family;
-				fsr_queues                  = true;
-				break;
-			}
-			if (!fsr_queues) {
-				std::printf("Frame generation: FSR needs three graphics queues and a compute family of two queues, or a compute "
-				            "family of three that can present: off\n");
-			} else if (!graphics_present) {
-				std::printf("Frame generation: FSR's presents on compute family %u (its own queue there; issue #170)\n",
-				            graphics.fsr_compute_family);
-			}
-		}
 	}
 #endif
-	(void)fsr_queues;
 	// (KYTY_READBACK_QUEUE=0: no transfer queue, as the switch's mode; performance-switches.h.)
 	if (const char* readback = std::getenv("KYTY_READBACK_QUEUE"); readback == nullptr || std::strcmp(readback, "0") != 0) {
 		uint32_t family_count = 0;
@@ -1635,17 +1586,6 @@ void WindowContext::CreateVulkan() {
 		if (FrameGen::Requested() && HasExtension(available_extensions, VK_KHR_PRESENT_ID_EXTENSION_NAME)) {
 			device_extensions.push_back(VK_KHR_PRESENT_ID_EXTENSION_NAME);
 		}
-		// KYTY_FRAMEGEN_BACKEND=fsr: FidelityFX's Vulkan backend calls the functions of the extensions the GPU offers, not
-		// of those the device enabled (its GPU breadcrumbs: vkGetBufferMemoryRequirements2KHR, vkCmdWriteBufferMarker2AMD;
-		// without them a call through a null pointer as its frame generation context was made).
-		if (FrameGen::UsesFsr()) {
-			for (const auto* extension: {VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
-			                             VK_AMD_BUFFER_MARKER_EXTENSION_NAME, VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME}) {
-				if (HasExtension(available_extensions, extension) && !HasExtension(device_extensions, extension)) {
-					device_extensions.push_back(extension);
-				}
-			}
-		}
 		AddPipelineBinaryExtensions(available_extensions, device_extensions);
 		AddCopyMemoryIndirectExtension(available_extensions, device_extensions);
 		AntiLag::AddDeviceExtension(available_extensions, device_extensions); // (KYTY_LOW_LATENCY)
@@ -1732,13 +1672,6 @@ void WindowContext::CreateVulkan() {
 		graphic_ctx.device.getQueue(graphic_ctx.readback_family, 0, &graphic_ctx.readback_queue);
 		EXIT_IF(graphic_ctx.readback_queue == nullptr);
 		DeviceFault::NoteQueue(graphic_ctx.readback_queue, "readback");
-	}
-	if (graphic_ctx.fsr_compute_family != static_cast<uint32_t>(-1)) {
-		graphic_ctx.device.getQueue(graphic_ctx.fsr_present_family, 2, &graphic_ctx.fsr_present_queue);
-		graphic_ctx.device.getQueue(graphic_ctx.fsr_compute_family, 0, &graphic_ctx.fsr_compute_queue);
-		graphic_ctx.device.getQueue(graphic_ctx.fsr_compute_family, 1, &graphic_ctx.fsr_acquire_queue);
-		LOGF("\tFSR queues: present family %u index 2, compute and acquire family %u\n", graphic_ctx.fsr_present_family,
-		     graphic_ctx.fsr_compute_family);
 	}
 	Libs::Graphics::FrameGen::OnDevice(graphic_ctx.instance, graphic_ctx.physical_device, graphic_ctx.device);
 	Libs::Graphics::FrameGen::OnFsrQueues(graphic_ctx);

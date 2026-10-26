@@ -101,14 +101,6 @@ struct GraphicContext {
 	Common::Mutex                      present_queue_mutex;
 	vk::Queue                          present_queue = nullptr;
 	bool                               present_queue_created = false; // queue index 1 of queue_family
-	// KYTY_FRAMEGEN_BACKEND=fsr: the queues of FSR's frame generation swapchain (frame-gen.cpp), its own: presents and
-	// UI composition (queue index 2 of queue_family, or with fewer graphics queues index 2 of the compute family, which
-	// then can present), async compute and image acquires (a compute-only family). Null without FSR.
-	vk::Queue                          fsr_present_queue = nullptr;
-	vk::Queue                          fsr_compute_queue = nullptr;
-	vk::Queue                          fsr_acquire_queue = nullptr;
-	uint32_t                           fsr_compute_family = static_cast<uint32_t>(-1);
-	uint32_t                           fsr_present_family = static_cast<uint32_t>(-1);
 
 	[[nodiscard]] const vk::PhysicalDeviceProperties& GetPhysicalDeviceProperties() const {
 		return physical_device_properties;

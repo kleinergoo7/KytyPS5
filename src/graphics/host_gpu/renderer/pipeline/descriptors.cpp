@@ -568,9 +568,7 @@ static bool TextureFromLevel(const ImageInfo& full, uint32_t first, ImageInfo& o
 // were never sampled from level 0, their larger levels 1.7 GB of the 3.9 GB the textures took, on a card holding 10 GB
 // in its 7.3 GB budget. An image of the whole texture, or of the texture from a lower level, serves the view as before;
 // when the game samples a larger level, the lookup makes the texture from that level (or the whole), and the smaller
-// image goes unused (a new image over its memory ends the resolution cache's hold on it). On with FSR frame generation
-// too (KYTY_FRAMEGEN_BACKEND=fsr): its allocations take about the video memory these levels give back, and none of
-// them is a level the game samples.
+// image goes unused (a new image over its memory ends the resolution cache's hold on it).
 static bool TexturePrefixEnabled(bool small_video_memory) {
 	static const char* const value = std::getenv("KYTY_TEXTURE_PREFIX");
 	return value != nullptr && value[0] != '\0' ? value[0] != '0' : small_video_memory || FrameGen::UsesFsr();
