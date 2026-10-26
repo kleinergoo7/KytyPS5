@@ -51,7 +51,6 @@ struct GraphicContext {
 	bool                               sample_rate_shading_enabled           = false;
 	bool                               attachment_feedback_loop_enabled      = false;
 	bool                               provoking_vertex_last_enabled         = false;
-	bool                               fragment_shader_barycentric_enabled   = false;
 	bool                               supports_block_texel_view              = false;
 	// VK_PIPELINE_CREATE_FAIL_ON_PIPELINE_COMPILE_REQUIRED_BIT is usable.
 	bool                               pipeline_cache_control_enabled        = false;

@@ -191,7 +191,7 @@ void CollectVertexInputs(const Program& program, const ShaderVertexInputInfo* ve
 }
 
 void CollectPixelInputs(const Program& program, const ShaderPixelInputInfo* pixel,
-                        bool fragment_shader_barycentric, ShaderInfo& info) {
+                        ShaderInfo& info) {
 	if (pixel->HasPositionInput()) {
 		AddInput(info, StageInputKind::FragCoord, 0, 4, "gl_FragCoord");
 	}
@@ -206,11 +206,7 @@ void CollectPixelInputs(const Program& program, const ShaderPixelInputInfo* pixe
 			if (inst.GetOpcode() == ValueOpcode::GetAttribute) {
 				interpolated[inst.Arg(0).U32()] = true;
 				referenced[inst.Arg(0).U32()]   = true;
-			} else if (fragment_shader_barycentric &&
-			           inst.GetOpcode() == ValueOpcode::GetInterpolationParameter) {
-				// Raw vertex reads need per-vertex inputs, which only exist with host
-				// barycentrics. Otherwise the emitter approximates them from the
-				// interpolated value.
+			} else if (inst.GetOpcode() == ValueOpcode::GetInterpolationParameter) {
 				const auto input = inst.Arg(0).U32();
 				const auto mode  = inst.Arg(2).U32();
 				referenced[input] = true;
@@ -280,8 +276,7 @@ void CollectComputeInputs(const ShaderComputeInputInfo* compute, ShaderInfo& inf
 	}
 }
 
-void CollectBuiltinInputs(const Program& program, bool fragment_shader_barycentric,
-                          ShaderInfo& info) {
+void CollectBuiltinInputs(const Program& program, ShaderInfo& info) {
 	for (const auto* block: program.blocks) {
 		for (const auto& inst: *block) {
 			if (inst.GetOpcode() != ValueOpcode::GetBuiltin) {
@@ -304,16 +299,11 @@ void CollectBuiltinInputs(const Program& program, bool fragment_shader_barycentr
 					break;
 				case StageInputKind::Layer: AddInput(info, kind, 0, 1, "gl_Layer"); break;
 				case StageInputKind::SampleId: AddInput(info, kind, 0, 1, "gl_SampleID"); break;
-				// Without host barycentrics the builtin is left undeclared and reads as zero.
 				case StageInputKind::BaryCoordSmooth:
-					if (fragment_shader_barycentric) {
-						AddInput(info, kind, 0, 3, "gl_BaryCoordKHR");
-					}
+					AddInput(info, kind, 0, 3, "gl_BaryCoordKHR");
 					break;
 				case StageInputKind::BaryCoordNoPerspective:
-					if (fragment_shader_barycentric) {
-						AddInput(info, kind, 0, 3, "gl_BaryCoordNoPerspKHR");
-					}
+					AddInput(info, kind, 0, 3, "gl_BaryCoordNoPerspKHR");
 					break;
 				case StageInputKind::WorkgroupId:
 					AddInput(info, kind, 0, 3, "gl_WorkGroupID");
@@ -426,11 +416,11 @@ void CollectShaderInfo(Program& program, const ShaderInfoOptions& options) {
 	switch (program.stage) {
 		case ShaderType::Vertex: CollectVertexInputs(program, options.vertex, next); break;
 		case ShaderType::Mesh: break;
-		case ShaderType::Pixel: CollectPixelInputs(program, options.pixel, options.fragment_shader_barycentric, next); break;
+		case ShaderType::Pixel: CollectPixelInputs(program, options.pixel, next); break;
 		case ShaderType::Compute: CollectComputeInputs(options.compute, next); break;
 		default: return Fail("unsupported shader stage for info collection");
 	}
-	CollectBuiltinInputs(program, options.fragment_shader_barycentric, next);
+	CollectBuiltinInputs(program, next);
 	CollectOutputs(program, options.vertex, options.pixel, next);
 	program.info                 = std::move(next);
 	program.shader_info_complete = true;

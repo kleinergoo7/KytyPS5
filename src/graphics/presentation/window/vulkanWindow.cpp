@@ -930,12 +930,14 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 	// (With maintenance5, with or without the binaries, pipelines take SPIR-V inline.)
 	ModuleStore::Enable(graphics.maintenance5_enabled);
 	graphics.provoking_vertex_last_enabled = provoking_extension && provoking_vertex.provokingVertexLast;
-	graphics.fragment_shader_barycentric_enabled =
-	    barycentric_extension && fragment_barycentric.fragmentShaderBarycentric;
-	if (!graphics.fragment_shader_barycentric_enabled) {
-		LOGF("WARNING: fragmentShaderBarycentric is unavailable. Pixel shaders that read raw "
-		     "vertex attributes will use interpolated values, which may cause rendering "
-		     "errors.\n");
+	// No fragment shader barycentrics on this GPU (Polaris, RDNA 1, older drivers): continue without them.
+	// Pixel shaders needing them fail at pipeline creation instead of blocking startup (issue #149).
+	const bool barycentric_supported =
+	    barycentric_extension && fragment_barycentric.fragmentShaderBarycentric == VK_TRUE;
+	if (!barycentric_supported) {
+		LOGF("WARNING: GPU has no fragment shader barycentrics "
+		     "(VK_KHR_fragment_shader_barycentric); pixel shaders needing them fail at pipeline "
+		     "creation\n");
 	}
 	graphics.attachment_feedback_loop_enabled =
 	    feedback_extensions && feedback_layout.attachmentFeedbackLoopLayout &&
@@ -1027,7 +1029,11 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 
 	vk::PhysicalDeviceRobustness2FeaturesEXT robustness2 {};
 	robustness2.sType = vk::StructureType::ePhysicalDeviceRobustness2FeaturesEXT;
-	robustness2.pNext = &features12;
+	fragment_barycentric.sType =
+	    vk::StructureType::ePhysicalDeviceFragmentShaderBarycentricFeaturesKHR;
+	fragment_barycentric.pNext                     = &features12;
+	fragment_barycentric.fragmentShaderBarycentric = VK_TRUE;
+	robustness2.pNext                              = &fragment_barycentric;
 	if (robustness2_ext_enabled) {
 		robustness2.robustBufferAccess2 = supported_robustness2.robustBufferAccess2;
 		robustness2.robustImageAccess2  = supported_robustness2.robustImageAccess2;
@@ -1135,10 +1141,6 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 		fault_features.deviceFault = VK_TRUE;
 		fault_features.pNext       = const_cast<void*>(create_info.pNext);
 		create_info.pNext          = &fault_features;
-	}
-	if (graphics.fragment_shader_barycentric_enabled) {
-		fragment_barycentric.pNext = const_cast<void*>(create_info.pNext);
-		create_info.pNext          = &fragment_barycentric;
 	}
 	create_info.flags                   = {};
 	create_info.pQueueCreateInfos       = queue_create_infos.data();

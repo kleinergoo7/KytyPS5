@@ -9,9 +9,6 @@ struct ShaderInfoOptions {
 	const ShaderVertexInputInfo*  vertex  = nullptr;
 	const ShaderPixelInputInfo*   pixel   = nullptr;
 	const ShaderComputeInputInfo* compute = nullptr;
-	// Without VK_KHR_fragment_shader_barycentric, raw per-vertex pixel inputs are
-	// approximated from the host-interpolated value.
-	bool fragment_shader_barycentric = true;
 };
 
 // Completes the immutable shader interface after resource tracking. On failure Program::info and
