@@ -1516,6 +1516,9 @@ void AddDeviceExtensions(vk::Instance instance, vk::PhysicalDevice physical_devi
 void OnDevice(vk::Instance instance, vk::PhysicalDevice physical_device, vk::Device device) {
 	(void)instance;
 	(void)device;
+	// (FSR 3 built in: its contexts are made by the present thread with the first frame it generates. Its backend
+	// needs no NGX, so this cannot sit in the NGX branch below: Windows builds Streamline instead.)
+	if (g_fsr_native) g_ready = true;
 #ifdef KYTY_FRAMEGEN_STREAMLINE
 	if (g_upscale) {
 		sl::AdapterInfo adapter {};
@@ -1565,8 +1568,6 @@ void OnDevice(vk::Instance instance, vk::PhysicalDevice physical_device, vk::Dev
 		}
 		std::fflush(stdout);
 	}
-	// (FSR 3 built in: its contexts are made by the present thread with the first frame it generates.)
-	if (g_fsr_native) g_ready = true;
 	if (g_generate > 0 && !g_ready) g_generate = 0; // (no NGX: Requested() and the rest see it off)
 #endif
 	if (g_generate == 0 || g_fsr || g_fsr_native) {
@@ -1606,7 +1607,7 @@ void OnDevice(vk::Instance instance, vk::PhysicalDevice physical_device, vk::Dev
 void BeforePresent(const FrameInputs* inputs, vk::Extent2D backbuffer, vk::Rect2D region,
                    vk::Format format, uint32_t image_count) {
 #ifdef KYTY_FRAMEGEN_STREAMLINE
-	if (!g_ready || g_fsr) {
+	if (!g_ready || g_fsr || g_fsr_native) {
 		return;
 	}
 	const sl::ViewportHandle viewport {0};
