@@ -55,7 +55,7 @@ void Install(Program* program) {
 	// (The device exists by now: without DLSS on it, FSR 3 built in - issue #85: DLSS asked for with FSR 3 frame
 	// generation on left an RTX 2060 the game's TAA from 540 lines -, else the game's own TAA rather than a stretch.)
 	if (!fsr && !Libs::Graphics::FrameGen::UpscalerReady()) {
-		const char* reason = Libs::Graphics::FrameGen::UsesFsr()
+		const char* reason = Libs::Graphics::FsrNative::InterpolationRequested()
 		                         ? "AMD FSR 3 frame generation runs without NVIDIA's Streamline, which DLSS needs"
 		                         : "it needs an NVIDIA RTX GPU and NVIDIA's DLSS runtime: Streamline on Windows, "
 		                           "libkyty_dlss.so on Linux";

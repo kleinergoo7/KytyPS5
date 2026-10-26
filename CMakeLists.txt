@@ -943,16 +943,6 @@ if (WIN32)
 		set_property(SOURCE "${KYTY_SOURCE_DIR}/local/frame-gen.cpp" APPEND PROPERTY
 		             COMPILE_DEFINITIONS KYTY_FRAMEGEN_STREAMLINE=1)
 	endif()
-	# KYTY_FRAMEGEN_BACKEND=fsr: AMD FidelityFX SDK 1.1.4's API headers (ffx-api/include, MIT) when unpacked under
-	# _Build/deps/fidelityfx; its runtime (amd_fidelityfx_vk.dll, signed by AMD) goes next to the emulator.
-	set(KYTY_FIDELITYFX_SDK "${CMAKE_CURRENT_SOURCE_DIR}/_Build/deps/fidelityfx" CACHE PATH
-	    "AMD FidelityFX SDK (ffx-api) for KYTY_FRAMEGEN_BACKEND=fsr")
-	if (EXISTS "${KYTY_FIDELITYFX_SDK}/include/ffx_api/ffx_api.h")
-		set_property(SOURCE "${KYTY_SOURCE_DIR}/local/frame-gen.cpp" APPEND PROPERTY
-		             INCLUDE_DIRECTORIES "${KYTY_FIDELITYFX_SDK}/include")
-		set_property(SOURCE "${KYTY_SOURCE_DIR}/local/frame-gen.cpp" APPEND PROPERTY
-		             COMPILE_DEFINITIONS KYTY_FRAMEGEN_FSR=1)
-	endif()
 elseif (LINUX)
 	# Linux has no Streamline: DLSS (KYTY_UPSCALER=dlss) through NVIDIA's NGX, by the bridge libkyty_dlss.so that
 	# tools/local/dlss-bridge/build-dlss-linux.sh builds apart; loaded at run time (dlopen), the emulator links no NVIDIA

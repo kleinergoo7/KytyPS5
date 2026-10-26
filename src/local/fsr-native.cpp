@@ -17,13 +17,8 @@
 #include <mutex>
 #include <string_view>
 
-// The FidelityFX sources are built on Linux and Windows (3rdparty/fidelityfx; macOS: none). Windows' FSR frame generation
-// stays AMD's runtime (frame-gen.cpp): InterpolationRequested below is Linux's alone.
-#if defined(__linux__) || defined(_WIN32)
-#define KYTY_FSR_NATIVE 1
-#else
-#define KYTY_FSR_NATIVE 0
-#endif
+// The FidelityFX sources are built on Linux and Windows (3rdparty/fidelityfx; macOS: none; KYTY_FSR_NATIVE is now
+// defined in fsr-native.h so frame-gen.cpp can gate on the same macro).
 
 #if KYTY_FSR_NATIVE
 #include <FidelityFX/host/backends/vk/ffx_vk.h>
@@ -87,7 +82,7 @@ bool UpscaleInsteadOfDlss() {
 }
 
 bool InterpolationRequested() {
-#if defined(__linux__) || defined(_WIN32)
+#if KYTY_FSR_NATIVE
 	static const bool requested = [] {
 		const char* value = std::getenv("KYTY_FRAMEGEN_BACKEND");
 		return value != nullptr && std::string_view(value) == "fsr";

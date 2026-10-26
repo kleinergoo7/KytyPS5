@@ -23,8 +23,7 @@
 #   .\run-windows.ps1 -StreamlineDir <dir>   where NVIDIA's Streamline runtime is (the Streamline SDK
 #                                            or its bin\x64; default: a "streamline" folder next to
 #                                            the emulator)
-#   .\run-windows.ps1 -Fsr                   AMD FSR 3.1 frame generation instead (2x, any GPU): AMD's
-#                                            amd_fidelityfx_vk.dll next to the emulator
+#   .\run-windows.ps1 -Fsr                   AMD FSR 3 frame generation instead (2x, any GPU), built in
 #   .\run-windows.ps1 -Fps120                the game's frame rate up to 120 fps instead of 60 (a 120 Hz
 #                                            virtual vblank; movies, menus and loading screens keep 60)
 #   .\run-windows.ps1 -Vblank 240            another virtual vblank rate (default 60, the console's)
@@ -337,7 +336,7 @@ if ($LowLatency) { $environment['KYTY_LOW_LATENCY'] = '1' }
 if ($FrameGen -gt 0) { $environment['KYTY_FRAMEGEN'] = "$FrameGen" }
 # -Upscaler dlss|fsr: src/loader/demonsSoulsSuperResolution.h (fsr: src/local/fsr-native.h).
 if ($Upscaler) { $environment['KYTY_UPSCALER'] = $Upscaler }
-# -Fsr: FSR 3.1 (one generated frame; no Streamline).
+# -Fsr: FSR 3 built in (one generated frame; no Streamline).
 if ($Fsr) { $environment['KYTY_FRAMEGEN'] = '1'; $environment['KYTY_FRAMEGEN_BACKEND'] = 'fsr'; $FrameGen = 0 }
 # Without -StreamlineDir, the Streamline folder chosen in the launcher (launcher-settings.json), as the launcher passes
 # it: run.cmd -FrameGen 1 had started with frame generation off, its runtime not found (issue #38).

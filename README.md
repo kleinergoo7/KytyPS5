@@ -254,10 +254,8 @@ package is built that way by [`.github/workflows/build.yml`](.github/workflows/b
 release (pushes build nothing). [`.github/workflows/build-linux.yml`](.github/workflows/build-linux.yml)
 builds the Linux package the same way (a `v*` tag adds it to that tag's release).
 
-AMD FSR 3.1 frame generation (2x, any GPU without DLSS frame generation; `run-windows.ps1 -Fsr`, a launcher
-checkbox) is built in when AMD FidelityFX SDK 1.1.4's API headers (`ffx-api/include`, MIT) are unpacked into
-`_Build\deps\fidelityfx\include` before configuring. At run time it needs AMD's signed `amd_fidelityfx_vk.dll` next
-to the emulator. The release build fetches the headers itself (as Streamline's); the DLL is not in the package.
+AMD FSR 3 frame generation (2x, any GPU without DLSS frame generation; `run-windows.ps1 -Fsr`, a launcher
+checkbox) is built in from source (AMD FidelityFX SDK 1.1.4, MIT): nothing to download, no DLL needed.
 
 ### Build requirements (Windows)
 

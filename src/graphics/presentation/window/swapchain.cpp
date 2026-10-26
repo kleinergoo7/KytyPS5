@@ -698,8 +698,8 @@ struct Presenter::Impl {
 		}
 	}
 
-#if defined(__linux__) || defined(_WIN32)
-	// Linux frame generation (FrameGen::PresenterGenerates; Streamline does this inside vkQueuePresentKHR on Windows): the
+#if KYTY_FSR_NATIVE
+	// Presenter-made frames (FrameGen::PresenterGenerates; Streamline does this inside vkQueuePresentKHR on Windows): the
 	// frame finished at the swapchain's size with its system overlay (`composed`), and the frames NGX makes between two
 	// such frames (`generated`), shown before it, evenly spaced over the time between the game's frames.
 	VulkanImage                           composed;
@@ -1337,9 +1337,9 @@ void Swapchain::RecordPresentCommands(CommandBuffer& command, VulkanImage& sourc
 	vk_command.blitImage(source.image, vk::ImageLayout::eTransferSrcOptimal,
 	                     dst_image, vk::ImageLayout::eTransferDstOptimal, 1, &region,
 	                     vk::Filter::eLinear);
-	// KYTY_FRAMEGEN_BACKEND=fsr: the HUD-less image from this, before the system overlay (which counts as HUD then); the
-	// Windows backend's of the swapchain image, FSR 3 built in's of the composed frame (`target`).
-	if (fsr_inputs != nullptr && (FrameGen::OwnsSwapchain() ? target == nullptr : target != nullptr)) {
+	// KYTY_FRAMEGEN_BACKEND=fsr: the HUD-less image from this, before the system overlay (which counts as HUD then);
+	// FSR 3 built in's of the composed frame (`target`).
+	if (fsr_inputs != nullptr && target != nullptr) {
 		FrameGen::RecordHudless(m_window.graphic_ctx, vk_command, fsr_inputs, dst_image, m_extent,
 		                        m_present_region, m_format);
 	}
@@ -1671,8 +1671,8 @@ bool Presenter::GeneratesFrames() noexcept {
 void Presenter::Present(Frame& frame, bool reuse) {
 	KYTY_PROFILER_FUNCTION();
 	m_impl->frames.ValidateForPresent(&frame, reuse);
-#if defined(__linux__) || defined(_WIN32)
-	// Linux frame generation: a new frame, and those NGX makes before it (PresentGenerated). A cleared frame, or an HDR
+#if KYTY_FSR_NATIVE
+	// Presenter-made frames: a new frame, and those made before it (PresentGenerated). A cleared frame, or an HDR
 	// one for DLSS-G (FSR 3 built in takes PQ frames too), goes the normal way, and generation starts again after it; a
 	// last frame shown again (an idle refresh) is not new.
 	if (FrameGen::PresenterGenerates() && !reuse) {

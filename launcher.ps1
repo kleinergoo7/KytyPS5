@@ -176,10 +176,7 @@ $rtxGpu = try {
 	[bool](Get-CimInstance Win32_VideoController | Where-Object { $_.Name -match 'NVIDIA' -and $_.Name -match '\bRTX\b' })
 } catch { $false }
 $frameGenAvailable = [bool]$streamline -and $rtxGpu
-# FSR 3.1 frame generation (run-windows -Fsr), any GPU: AMD's signed amd_fidelityfx_vk.dll next to the emulator.
-$fsrDll = Join-Path (Split-Path $exe) 'amd_fidelityfx_vk.dll'
-$fsrAvailable = (Test-Path -LiteralPath $fsrDll) -and
-	((Get-AuthenticodeSignature -LiteralPath $fsrDll).SignerCertificate.Subject -match 'O=Advanced Micro Devices')
+# FSR 3 frame generation (run-windows -Fsr), any GPU: built into the emulator, nothing to download.
 
 # Cheats (_Patches\<title id>.json)
 # A GoldHEN-style mods file: every mod has a name, an enabled flag and the memory writes it makes.
@@ -380,7 +377,7 @@ function Get-PlayCommand {
 	if ($settings.quality -in 'low', 'lowest') {
 		$arguments += @('-Quality', $settings.quality, '-TextureReduce', $(if ($settings.quality -eq 'lowest') { 2 } else { 1 }))
 	}
-	$fsrOn = $fsrAvailable -and $settings.fsr
+	$fsrOn = [bool]$settings.fsr
 	if ($fsrOn) { $arguments += '-Fsr' }
 	if (!$fsrOn -and $frameGenAvailable -and [int]$settings.framegen -ge 2) { $arguments += @('-FrameGen', ([int]$settings.framegen - 1)) }
 	if ($dlss) { $arguments += @('-Upscaler', 'dlss') } elseif ($fsrUpscaler) { $arguments += @('-Upscaler', 'fsr') }
@@ -757,9 +754,9 @@ $frameGenFolder.Add_Click({
 })
 Add-Row 'Frame generation' @($frameGen, $frameGenFolder, $frameGenNote)
 $fsr = New-Object System.Windows.Forms.CheckBox -Property @{ Text = 'AMD FSR 3 frame generation (2x, any GPU; instead of DLSS)'; AutoSize = $true
-	Checked = ($fsrAvailable -and [bool]$settings.fsr); Enabled = $fsrAvailable }
-(New-Object System.Windows.Forms.ToolTip).SetToolTip($fsr, "AMD FidelityFX FSR 3.1: one generated frame between two of the game's, from its depth and motion.`n" +
-	"With VSync on, the shown frames are capped at the display's refresh (a 60 Hz display runs the game at 30 fps).`nNeeds amd_fidelityfx_vk.dll next to the emulator.")
+	Checked = [bool]$settings.fsr }
+(New-Object System.Windows.Forms.ToolTip).SetToolTip($fsr, "AMD FidelityFX FSR 3, built in: one generated frame between two of the game's, from its depth and motion.`n" +
+	"With VSync on, the shown frames are capped at the display's refresh (a 60 Hz display runs the game at 30 fps).")
 Add-Row '' @($fsr)
 $hud = New-Object System.Windows.Forms.ComboBox -Property @{ DropDownStyle = 'DropDownList'; Width = 160 }
 $hud.Items.AddRange($overlays)
@@ -814,7 +811,7 @@ function Read-Form {
 	elseif ($upscaler.SelectedIndex -eq 2) { $settings.upscaler = 'fsr' }
 	elseif ($upscaler.SelectedIndex -eq 1) { if ($frameGenAvailable) { $settings.upscaler = 'dlss' } }
 	elseif ($frameGenAvailable -or $settings.upscaler -ne 'dlss') { $settings.upscaler = '' }
-	if ($fsrAvailable) { $settings.fsr = $fsr.Checked }
+	$settings.fsr = $fsr.Checked
 	$settings.ecores     = $ecores.Checked
 	Save-Settings
 }
