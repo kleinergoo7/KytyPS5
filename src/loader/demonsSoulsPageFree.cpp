@@ -415,7 +415,21 @@ void WalkerThread() {
 			prepare_ns += static_cast<uint64_t>(NowNs() - prepared);
 			bool whole = true;
 			for (uint64_t at = 0; at < run.size; at += Chunk) {
-				if (budget == 0 || pass_hold_ns >= LockBudgetNs || !LockAllocator(20)) {
+				if (budget == 0 || pass_hold_ns >= LockBudgetNs) {
+					whole = false;
+					break;
+				}
+				// The working set lock timed again before each chunk, outside the allocator's lock: a PC paging hard had a
+				// chunk hold it 0.5-1.3 s waiting for Windows (issue #174: 16 GB, 2 GB left), the game's allocating threads
+				// with it, where the probe once a pass had found Windows quick.
+				if (const auto probe = ProbeWorkingSetNs(); probe >= SlowProbeNs) {
+					slowest_ns = std::max(slowest_ns, probe);
+					whole      = false;
+					ended      = true;
+					slow       = true;
+					break;
+				}
+				if (!LockAllocator(20)) {
 					whole = false;
 					break;
 				}
