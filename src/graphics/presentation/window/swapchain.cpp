@@ -698,7 +698,7 @@ struct Presenter::Impl {
 		}
 	}
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32)
 	// Linux frame generation (FrameGen::PresenterGenerates; Streamline does this inside vkQueuePresentKHR on Windows): the
 	// frame finished at the swapchain's size with its system overlay (`composed`), and the frames NGX makes between two
 	// such frames (`generated`), shown before it, evenly spaced over the time between the game's frames.
@@ -1671,7 +1671,7 @@ bool Presenter::GeneratesFrames() noexcept {
 void Presenter::Present(Frame& frame, bool reuse) {
 	KYTY_PROFILER_FUNCTION();
 	m_impl->frames.ValidateForPresent(&frame, reuse);
-#if defined(__linux__) || defined(KYTY_FRAMEGEN_FSR)
+#if defined(__linux__) || defined(_WIN32)
 	// Linux frame generation: a new frame, and those NGX makes before it (PresentGenerated). A cleared frame, or an HDR
 	// one for DLSS-G (FSR 3 built in takes PQ frames too), goes the normal way, and generation starts again after it; a
 	// last frame shown again (an idle refresh) is not new.
