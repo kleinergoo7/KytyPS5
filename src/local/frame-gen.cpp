@@ -1014,7 +1014,6 @@ KytyDlssImage BridgeImage(const VulkanImage& image, vk::ImageView view) {
 
 // Frame generation through NGX (the presenter shows the frames, swapchain.cpp).
 bool              g_fg_created = false; // the DLSS-G feature exists for these sizes
-bool              g_fg_history = false; // the last frame given to it had inputs: the next one interpolates from it
 bool              g_fg_failed  = false;
 // The sizes NGX did not make DLSS-G for, and when (out of video memory at a resize: issue #215, NGX 0xbad0000d at a
 // 646x270 render size, then no frame generation for the rest of the session): frames of those sizes go without it,
@@ -1031,8 +1030,7 @@ FgRefusal          g_fg_refused;
 // Since when the frames' render size has been half the feature's or less, the backbuffer the same (zero: not now).
 std::chrono::steady_clock::time_point g_fg_small_since {};
 vk::Extent2D      g_fg_backbuffer {}, g_fg_render {};
-vk::Format        g_fg_format = vk::Format::eUndefined;
-std::atomic<bool> g_fg_discontinuity {false}; // a frame with inputs left unshown (NoteDroppedFrame)
+vk::Format        g_fg_format = vk::Format::eUndefined
 
 // Matrices as Streamline and NGX take them: row-major, row vectors (p' = p * M), 16 floats.
 using RowMatrix = std::array<float, 16>;
@@ -1141,6 +1139,10 @@ void Copy16(float (&out)[16], const RowMatrix& m) {
 } // namespace
 #endif
 
+// Frame-generation history, shared by the FSR native path (Windows/Linux) and the NGX path.
+bool              g_fg_history = false;
+std::atomic<bool> g_fg_discontinuity {false};
+
 bool Enabled() {
 	return g_ready;
 }
@@ -1163,7 +1165,7 @@ std::string SupportProblem(vk::PhysicalDevice physical_device) {
 		std::fflush(stdout);
 	}
 #endif
-	if (g_generate == 0 || g_fsr) {
+	if (g_generate == 0 || g_fsr || g_fsr_native) {
 		return {};
 	}
 #ifdef KYTY_FRAMEGEN_STREAMLINE
@@ -2652,8 +2654,12 @@ bool SkipsFrame(const FrameInputs* inputs) {
 }
 
 bool PresenterGenerates() {
-#ifdef KYTY_FRAMEGEN_NGX
+#if defined(KYTY_FRAMEGEN_NGX) || defined(KYTY_FRAMEGEN_FSR)
+#if defined(KYTY_FRAMEGEN_NGX)
 	return g_ready && g_generate > 0 && !g_fg_failed && (g_dlss != nullptr || g_fsr_native);
+#else
+	return g_ready && g_generate > 0 && g_fsr_native;
+#endif
 #else
 	return false;
 #endif
@@ -2765,7 +2771,7 @@ bool PresenterGeneratesHdr() {
 
 uint32_t Generate(GraphicContext& graphics, vk::CommandBuffer command, const FrameInputs* inputs, const UpscaleImage& backbuffer,
                   vk::Rect2D region, std::span<const UpscaleImage> outputs, bool hdr) {
-#ifdef KYTY_FRAMEGEN_NGX
+#if defined(KYTY_FRAMEGEN_NGX) || defined(KYTY_FRAMEGEN_FSR)
 	if (!PresenterGenerates()) return 0;
 	const bool discontinuity =
 	    g_fg_discontinuity.exchange(false, std::memory_order_relaxed) || (inputs != nullptr && inputs->cut);
@@ -2816,6 +2822,7 @@ uint32_t Generate(GraphicContext& graphics, vk::CommandBuffer command, const Fra
 		g_fg_history    = true;
 		return made ? 1u : 0u;
 	}
+#ifdef KYTY_FRAMEGEN_NGX
 	const auto count = static_cast<uint32_t>(std::min<size_t>(outputs.size(), static_cast<size_t>(g_generate)));
 	if (count == 0) return 0;
 	// A render size half the feature's or less, the backbuffer the same (#215: 646x270 against 2584x1080, a few times an
@@ -2985,6 +2992,7 @@ uint32_t Generate(GraphicContext& graphics, vk::CommandBuffer command, const Fra
 	(void)outputs;
 	(void)hdr;
 	return 0;
+#endif
 #endif
 }
 

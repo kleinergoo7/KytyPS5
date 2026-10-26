@@ -87,7 +87,7 @@ bool UpscaleInsteadOfDlss() {
 }
 
 bool InterpolationRequested() {
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32)
 	static const bool requested = [] {
 		const char* value = std::getenv("KYTY_FRAMEGEN_BACKEND");
 		return value != nullptr && std::string_view(value) == "fsr";
