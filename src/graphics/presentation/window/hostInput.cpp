@@ -390,11 +390,26 @@ void HostInputInit() {
 	GetInputMap();
 }
 
+// The Steam Deck build leaves the keyboard's default pad keys out (KYTY_DECK_KEYBOARD=1 keeps them): started outside
+// Steam, Steam's desktop layout sends keys for the Deck's sticks and buttons on top of the controller itself (the arrow
+// keys pressed the D-pad: the equipment changed while walking). A keymap's keys still count.
+static bool DefaultKeysUsed() {
+#if defined(KYTY_STEAM_DECK)
+	static const bool used = [] {
+		const char* value = std::getenv("KYTY_DECK_KEYBOARD");
+		return value != nullptr && std::string_view(value) == "1";
+	}();
+	return used;
+#else
+	return true;
+#endif
+}
+
 void HostInputKey(int key_code, bool down) {
 	const auto& map = GetInputMap();
 	if (map.Custom()) {
 		SetControl(map.FindKey(key_code), down);
-	} else {
+	} else if (DefaultKeysUsed()) {
 		DefaultKeyboardInput(key_code, down);
 	}
 }
