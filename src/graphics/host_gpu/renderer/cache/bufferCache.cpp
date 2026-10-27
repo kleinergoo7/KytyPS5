@@ -34,9 +34,11 @@ volatile std::atomic<uint32_t> kyty_local_copy_feedback_mode {1};
 // copy on the transfer queue.
 [[gnu::used]] volatile std::atomic<uint32_t> kyty_local_readback_queue_mode {1};
 // KYTY_READBACK_SPAN: 1: a guest readback window also takes the host buffers next to the
-// request's. 2 (default): 1 while read guards are off (KYTY_READ_GUARD,
-// LibKernel::Memory::ReadGuardsOn), else 0. Not tested with read guards on.
-[[gnu::used]] volatile std::atomic<uint32_t> kyty_local_readback_span_mode {2};
+// request's. 2: 1 while read guards are off (KYTY_READ_GUARD, LibKernel::Memory::ReadGuardsOn),
+// else 0. 0 (default): off. Issue #222: on Linux (no read guards) the Nexus floor's runes turned
+// to grainy noise around the player in 2 runs of 3 with it on, clean with it off; why is not
+// known yet (not seen on Windows).
+[[gnu::used]] volatile std::atomic<uint32_t> kyty_local_readback_span_mode {0};
 // 1: pack the LOD report on the GPU instead of a CPU wait and copy.
 volatile std::atomic<uint32_t> kyty_local_async_lod_stats_mode {1};
 // 1: shader constants stream through a host-visible upload ring.
