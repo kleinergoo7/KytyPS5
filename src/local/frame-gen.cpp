@@ -1014,6 +1014,18 @@ KytyDlssImage BridgeImage(const VulkanImage& image, vk::ImageView view) {
 bool              g_fg_created = false; // the DLSS-G feature exists for these sizes
 bool              g_fg_history = false; // the last frame given to it had inputs: the next one interpolates from it
 bool              g_fg_failed  = false;
+// The sizes NGX did not make DLSS-G for, and when (out of video memory at a resize: issue #215, NGX 0xbad0000d at a
+// 646x270 render size, then no frame generation for the rest of the session): frames of those sizes go without it,
+// and it is made again at other sizes or after FgRetry; FgRefusals in a row turn it off.
+struct FgRefusal {
+	vk::Extent2D                          backbuffer {}, render {};
+	vk::Format                            format = vk::Format::eUndefined;
+	std::chrono::steady_clock::time_point at {};
+	uint32_t                              count = 0;
+};
+constexpr auto     FgRetry    = std::chrono::seconds(30);
+constexpr uint32_t FgRefusals = 8;
+FgRefusal          g_fg_refused;
 vk::Extent2D      g_fg_backbuffer {}, g_fg_render {};
 vk::Format        g_fg_format = vk::Format::eUndefined;
 std::atomic<bool> g_fg_discontinuity {false}; // a frame with inputs left unshown (NoteDroppedFrame)
@@ -2775,6 +2787,11 @@ uint32_t Generate(GraphicContext& graphics, vk::CommandBuffer command, const Fra
 	if (count == 0) return 0;
 	if (!g_fg_created || g_fg_backbuffer != backbuffer.extent || g_fg_format != backbuffer.format ||
 	    g_fg_render != inputs->render_extent) {
+		const auto now = std::chrono::steady_clock::now();
+		if (g_fg_refused.count != 0 && g_fg_refused.backbuffer == backbuffer.extent &&
+		    g_fg_refused.format == backbuffer.format && g_fg_refused.render == inputs->render_extent &&
+		    now - g_fg_refused.at < FgRetry)
+			return 0;
 		KytyDlssgFeature feature {};
 		feature.width         = backbuffer.extent.width;
 		feature.height        = backbuffer.extent.height;
@@ -2782,12 +2799,17 @@ uint32_t Generate(GraphicContext& graphics, vk::CommandBuffer command, const Fra
 		feature.render_width  = inputs->render_extent.width;
 		feature.render_height = inputs->render_extent.height;
 		if (g_dlss->FrameGenCreate(static_cast<VkCommandBuffer>(command), &feature) == 0) {
-			std::printf("Frame generation: NGX did not make DLSS-G for %ux%u (depth and motion %ux%u): off\n", feature.width,
-			            feature.height, feature.render_width, feature.render_height);
+			// (The bridge retired the feature before: none now.)
+			g_fg_created = false;
+			g_fg_refused = {backbuffer.extent, inputs->render_extent, backbuffer.format, now, g_fg_refused.count + 1};
+			g_fg_failed  = g_fg_refused.count >= FgRefusals;
+			std::printf("Frame generation: NGX did not make DLSS-G for %ux%u (depth and motion %ux%u): %s\n", feature.width,
+			            feature.height, feature.render_width, feature.render_height,
+			            g_fg_failed ? "off" : "frames go without it, made again at other sizes or in 30 s");
 			std::fflush(stdout);
-			g_fg_failed = true;
 			return 0;
 		}
+		g_fg_refused.count = 0;
 		std::printf("Frame generation: DLSS-G %ux%u, depth and motion %ux%u, %ux (NVIDIA NGX)\n", feature.width,
 		            feature.height, feature.render_width, feature.render_height, count + 1);
 		std::fflush(stdout);
@@ -2883,11 +2905,17 @@ uint32_t Generate(GraphicContext& graphics, vk::CommandBuffer command, const Fra
 		if (g_dlss->FrameGenEvaluate(static_cast<VkCommandBuffer>(command), &evaluate) == 0) break;
 		++made;
 	}
+	// (Three in a row: made again after FgRetry, as when NGX did not make it.)
+	static uint32_t failures = 0;
 	if (made < count) {
-		static uint32_t failures = 0;
 		if (++failures >= 3) {
-			g_fg_failed = true;
-			std::printf("Frame generation: NGX refused DLSS-G %u times: off from here on\n", failures);
+			failures     = 0;
+			g_fg_created = false;
+			g_fg_refused = {backbuffer.extent, inputs->render_extent, backbuffer.format, std::chrono::steady_clock::now(),
+			                g_fg_refused.count + 1};
+			g_fg_failed  = g_fg_refused.count >= FgRefusals;
+			std::printf("Frame generation: NGX refused DLSS-G 3 times in a row: %s\n",
+			            g_fg_failed ? "off from here on" : "made again in 30 s");
 		} else {
 			std::printf("Frame generation: NGX's DLSS-G evaluation failed (this frame shown alone)\n");
 		}
@@ -2895,6 +2923,7 @@ uint32_t Generate(GraphicContext& graphics, vk::CommandBuffer command, const Fra
 		g_fg_history = false;
 		return 0;
 	}
+	failures     = 0;
 	g_fg_history = true;
 	return reset ? 0u : made;
 #else
