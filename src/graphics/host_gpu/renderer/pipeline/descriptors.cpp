@@ -576,8 +576,8 @@ static bool TexturePrefixEnabled(bool small_video_memory) {
 	return value != nullptr && value[0] != '\0' ? value[0] != '0' : small_video_memory || FrameGen::UsesFsr();
 }
 
-// KYTY_TEXTURE_REDUCE=0|1|2 (default: 1 with a video memory budget under 12 GiB before frame generation's reserve, else
-// 0: GraphicContext::small_video_memory_alone): a sampled 2D block-compressed
+// KYTY_TEXTURE_REDUCE=0|1|2 (default: 1 on a card of 12 GiB of video memory or less, else 0:
+// GraphicContext::reduce_texture_levels): a sampled 2D block-compressed
 // texture of at least 1024 texels on a side is held without its 1 or 2 largest levels, as a T# from that level would be
 // (TextureFromLevel): its kept levels are the first bytes of its memory, so the left-out ones take no video memory and
 // are not uploaded when the game writes them. One level left out is a quarter of the texture: at 1-1 its BC textures
@@ -587,12 +587,12 @@ static bool TexturePrefixEnabled(bool small_video_memory) {
 // with one level out. Shaders sample the smaller texture (half the texels across); size queries, explicit levels and
 // texel loads see it too (a little blur). Demon's Souls streams none of the levels left out into its memory either
 // (loader/demonsSoulsTextureMips.cpp).
-uint32_t TextureReduceLevels(bool small_video_memory_alone) {
+uint32_t TextureReduceLevels(bool reduce_texture_levels) {
 	static const uint32_t levels = [&] {
 		const char*    value  = std::getenv("KYTY_TEXTURE_REDUCE");
 		const uint32_t chosen = value != nullptr && value[0] != '\0'
 		                            ? static_cast<uint32_t>(std::clamp(std::atoi(value), 0, 2))
-		                            : (small_video_memory_alone ? 1u : 0u);
+		                            : (reduce_texture_levels ? 1u : 0u);
 		if (chosen != 0) {
 			std::printf("Textures: large block-compressed textures held without their %u largest level(s) "
 			            "(KYTY_TEXTURE_REDUCE=0 keeps them whole)\n",
@@ -610,7 +610,7 @@ static void HoldFromBaseLevel(TextureCache& cache, TextureCache::ImageDesc& desc
 	const auto& full = desc.info;
 	// The levels left out of a large BC texture (none where the view reads only those, nor of one the GPU wrote: the
 	// character creator compresses faces on the GPU through texel views of the same memory, which must stay whole).
-	const auto reduce = TextureReduceLevels(graphics.small_video_memory_alone);
+	const auto reduce = TextureReduceLevels(graphics.reduce_texture_levels);
 	const auto drop   = reduce != 0 && full.IsBlock() && std::max(full.extent.width, full.extent.height) >= 1024u &&
 	                          full.resources.levels > reduce && last >= reduce &&
 	                          !cache.IsRegionGpuModified(full.data.address, full.data.size) &&

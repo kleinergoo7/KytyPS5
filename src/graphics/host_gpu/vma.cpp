@@ -147,9 +147,13 @@ bool GraphicContext::CreateAllocator() {
 	// flow, its swapchain; DLSS-G's alike; outside this allocator but in its budget) leave the game that much less, so a
 	// budget short of 12 GiB after them counts as small (a 16 GB card whose budget other programs had cut to 12.2 GiB ran
 	// out with FSR; issue #215: a 16 GB RTX 5080 with DLSS-G and DLSS ran out with the texture pools kept).
-	const uint64_t reserved  = Libs::Graphics::FrameGen::VideoMemoryReserve();
-	small_video_memory       = GetTotalMemoryBudget() < (uint64_t {12} << 30u) + reserved;
-	small_video_memory_alone = GetTotalMemoryBudget() < (uint64_t {12} << 30u);
+	const uint64_t reserved = Libs::Graphics::FrameGen::VideoMemoryReserve();
+	small_video_memory      = GetTotalMemoryBudget() < (uint64_t {12} << 30u) + reserved;
+	uint64_t video_memory   = 0; // (the largest device-local heap, less a simulation's ballast)
+	for (uint32_t i = 0; i < physical_device_memory_properties.memoryHeapCount; i++)
+		if (physical_device_memory_properties.memoryHeaps[i].flags & vk::MemoryHeapFlagBits::eDeviceLocal)
+			video_memory = std::max<uint64_t>(video_memory, physical_device_memory_properties.memoryHeaps[i].size);
+	reduce_texture_levels = video_memory - std::min(video_memory, simulation_ballast_bytes) <= (uint64_t {12} << 30u);
 	if (reserved != 0) {
 		std::printf("Video memory: %" PRIu64 " MiB of budget, %" PRIu64 " MiB of it left to frame generation and super "
 		            "resolution: %s\n",
