@@ -11,7 +11,6 @@
 
 #include <atomic>
 #include <cerrno>
-#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -74,9 +73,10 @@ static constexpr uint8_t  WATCH_WP         = 0x80;
 // microbenchmark with 7 busy threads and 7,000 views: 35.7 us a cycle as mprotects, 10.6 us zapped. Minor mode is
 // registered by aligned blocks of MINOR_BLOCK_PAGES within a view (pages registered one by one split the views into
 // thousands of VMAs, and the remaining mprotects over them took ~120 us instead of ~25), up to MINOR_BLOCK_CAP of them
-// (~120 more a world load): at the cap, blocks not zapped for MINOR_COLD_MS that hold no write-protected or zapped page
-// leave it (unregistered, registered again for write protection only: a registration with fewer modes keeps the ones
-// a VMA has, userfaultfd_register skips it, and an unregistration drops the pages' write protection). A page of a block
+// (~120 more a world load), for as long as their view lasts. Never left: a registration with fewer modes keeps the ones
+// a VMA has (userfaultfd_register skips it), and an unregistration (then a registration for write protection only)
+// fails other threads' write protections of the pages meanwhile, which then take them for pages of no registered view
+// while the kernel still write-protects them: a write faulted forever at a world load. A page of a block
 // whose PTE is missing otherwise (first touched there, reclaimed) faults too and is mapped at once
 // (SysVirtualResolveMinorFault); a kernel access to it fails (EFAULT), as to a protected page. Pages not in the page
 // cache (holes, swapped out: their access would not fault) and other protections keep mprotect. 1-1 at 360p, same
@@ -85,15 +85,10 @@ static constexpr uint8_t  WATCH_WP         = 0x80;
 static bool              g_minor_on      = false;
 static thread_local bool g_zap_no_access = false;
 static std::mutex        g_minor_mutex;
-struct MinorBlock {
-	uint64_t end;      // (pages)
-	int64_t  last_zap; // (steady ms)
-};
-static std::map<uint64_t, MinorBlock>* g_minor_blocks = nullptr; // (first page -> its block; under g_minor_mutex)
-static constexpr uint64_t              MINOR_RUN_PAGES   = 64;
-static constexpr uint64_t              MINOR_BLOCK_PAGES = 64;
-static constexpr uint64_t              MINOR_BLOCK_CAP   = 2048;
-static constexpr int64_t               MINOR_COLD_MS     = 5000;
+static std::map<uint64_t, uint64_t>* g_minor_blocks = nullptr; // (first page -> end page; under g_minor_mutex)
+static constexpr uint64_t           MINOR_RUN_PAGES   = 64;
+static constexpr uint64_t           MINOR_BLOCK_PAGES = 64;
+static constexpr uint64_t           MINOR_BLOCK_CAP   = 8192;
 
 static int OpenUffd(uint64_t features) {
 	const int fd = static_cast<int>(syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY));
@@ -139,7 +134,7 @@ static void WriteWatchInit() {
 	std::printf("KYTY_UFFD_WP: write watch by userfaultfd write protection\n");
 	if (!want_minor) return;
 	g_minor_on = has_minor;
-	if (g_minor_on) g_minor_blocks = new std::map<uint64_t, MinorBlock>;
+	if (g_minor_on) g_minor_blocks = new std::map<uint64_t, uint64_t>;
 	std::printf("KYTY_UFFD_MINOR: %s\n", g_minor_on ? "the GPU's read protections of short runs by userfaultfd minor mode"
 	                                                : "userfaultfd minor mode unavailable, mprotect kept");
 }
@@ -214,37 +209,6 @@ static void MapZapped(uint64_t address, uint64_t size, bool wp) {
 	}
 }
 
-static int64_t SteadyMs() {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-}
-
-// Minor mode left by a block none of whose pages is write-protected or zapped (nothing its unregistration drops).
-// Under g_minor_mutex.
-static bool LeaveMinor(uint64_t first, uint64_t end) {
-	for (auto page = first; page < end; page++)
-		if ((WatchPage(page) & (WATCH_WP | WATCH_ZAPPED)) != 0) return false;
-	uffdio_range range {first << 12u, (end - first) << 12u};
-	if (ioctl(g_uffd, UFFDIO_UNREGISTER, &range) != 0) return false;
-	// (A write protection meanwhile found no registration: its page took an mprotect and left the registered ones.)
-	if (!RegisterView(first << 12u, (end - first) << 12u, UFFDIO_REGISTER_MODE_WP)) ClearWatchBits(first, end, WATCH_REGISTERED);
-	ClearWatchBits(first, end, WATCH_MINOR);
-	return true;
-}
-
-// Room for another minor block: cold ones leave first, at most 16 a call. Under g_minor_mutex.
-static bool MakeMinorRoom(int64_t now) {
-	int left = 16;
-	for (auto it = g_minor_blocks->begin(); it != g_minor_blocks->end() && left > 0 && g_minor_blocks->size() >= MINOR_BLOCK_CAP;) {
-		if (now - it->second.last_zap >= MINOR_COLD_MS && LeaveMinor(it->first, it->second.end)) {
-			it = g_minor_blocks->erase(it);
-			left--;
-		} else {
-			++it;
-		}
-	}
-	return g_minor_blocks->size() < MINOR_BLOCK_CAP;
-}
-
 // The no-access protection of a registered run of `state` (SysVirtualProtectWriteWatch) by zapping its PTEs, when
 // minor mode can hold it: false keeps mprotect. A run outside minor mode first registers its aligned block's pages of
 // the view (those registered next to it, not in minor mode yet). The run's bits say zapped before its PTEs go (a fault
@@ -258,7 +222,6 @@ static bool ZapRun(uint64_t address, uint64_t size, uint8_t state) {
 	if (mincore(reinterpret_cast<void*>(address), size, resident) != 0) return false;
 	for (uint64_t i = 0; i < end - first; i++)
 		if ((resident[i] & 1u) == 0) return false;
-	const auto now = SteadyMs();
 	{
 		std::lock_guard lock(g_minor_mutex);
 		if ((state & WATCH_MINOR) == 0) {
@@ -267,16 +230,13 @@ static bool ZapRun(uint64_t address, uint64_t size, uint8_t state) {
 			auto       lo = first, hi = end;
 			while (lo > block_first && (WatchPage(lo - 1) & (WATCH_REGISTERED | WATCH_MINOR)) == WATCH_REGISTERED) lo--;
 			while (hi < block_end && (WatchPage(hi) & (WATCH_REGISTERED | WATCH_MINOR)) == WATCH_REGISTERED) hi++;
-			if (!MakeMinorRoom(now)) return false;
+			if (g_minor_blocks->size() >= MINOR_BLOCK_CAP) return false;
 			SetWatchBits(lo, hi, WATCH_MINOR);
 			if (!RegisterView(lo << 12u, (hi - lo) << 12u, UFFDIO_REGISTER_MODE_MINOR | UFFDIO_REGISTER_MODE_WP)) {
 				ClearWatchBits(lo, hi, WATCH_MINOR);
 				return false;
 			}
-			(*g_minor_blocks)[lo] = {hi, now};
-		} else if (auto it = g_minor_blocks->upper_bound(first);
-		           it != g_minor_blocks->begin() && std::prev(it)->second.end > first) {
-			std::prev(it)->second.last_zap = now;
+			(*g_minor_blocks)[lo] = hi;
 		}
 	}
 	SetWatchBits(first, end, WATCH_ZAPPED);
@@ -292,7 +252,7 @@ static void ForgetMinor(uint64_t first, uint64_t end) {
 	if (!g_minor_on) return;
 	std::lock_guard lock(g_minor_mutex);
 	auto it = g_minor_blocks->upper_bound(first);
-	if (it != g_minor_blocks->begin() && std::prev(it)->second.end > first) --it;
+	if (it != g_minor_blocks->begin() && std::prev(it)->second > first) --it;
 	while (it != g_minor_blocks->end() && it->first < end) it = g_minor_blocks->erase(it);
 }
 #else
