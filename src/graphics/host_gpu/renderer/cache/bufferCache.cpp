@@ -1894,16 +1894,23 @@ BufferCache::OverlapResult BufferCache::ResolveOverlaps(uint64_t vaddr, uint64_t
 		for (auto it = runs.rbegin(); it != runs.rend() && it->second >= reach; ++it) reach = std::min(reach, std::max(it->first, from));
 		return (reach + CACHING_PAGESIZE - 1) & ~(CACHING_PAGESIZE - 1);
 	};
-	auto first           = find_first(begin);
-	auto last            = first;
-	int  stream_score    = 0;
-	bool has_stream_leap = false;
+	auto     first           = find_first(begin);
+	auto     last            = first;
+	int      stream_score    = 0;
+	bool     has_stream_leap = false;
+	uint64_t largest         = 0; // the biggest buffer joined, and which way the request goes past it
+	bool     grows_right = false, grows_left = false;
 	for (; last != m_buffers.end() && last->first < end; ++last) {
 		const auto& buffer        = m_slot_buffers[last->second];
 		const auto  buffer_begin  = buffer.CpuAddress();
 		const auto  buffer_end    = buffer_begin + buffer.Size();
 		const bool  expands_left  = buffer_begin < begin;
 		const bool  expands_right = buffer_end > end;
+		if (buffer.Size() > largest) {
+			largest     = buffer.Size();
+			grows_right = expands_left;
+			grows_left  = expands_right;
+		}
 		begin                     = std::min(begin, buffer_begin);
 		end                       = std::max(end, buffer_end);
 		if (!has_stream_leap && (stream_score += buffer.StreamScore()) > StreamLeapThreshold) {
@@ -1922,6 +1929,31 @@ BufferCache::OverlapResult BufferCache::ResolveOverlaps(uint64_t vaddr, uint64_t
 				begin = std::min(begin, first->first);
 			}
 		}
+	}
+	// A big buffer growing (a pool the game fills over minutes: one of 638 MB made whole again six times up to 910 MB, on
+	// a GPU near its budget each time in system memory first, then moved back: frames of 100-135 ms, issue #215): room
+	// for an eighth more where it grows, over mapped memory only, and the buffers there joined too. The 16 GB tour (1-1,
+	// worlds 2-1 to 5-1, Nexus, 1-1): 18 buffers of 64 MiB and up made again instead of 35, video memory the same.
+	static constexpr uint64_t BigBuffer = uint64_t {64} << 20u;
+	if (!has_stream_leap && largest >= BigBuffer && end - begin > largest) {
+		const auto room   = (end - begin) / 8;
+		const auto before = end - begin;
+		// (Never an empty range: MappedRanges refuses one.)
+		if (grows_right && room != 0 && end < PageTable::kAddressSpaceSize)
+			end = std::max(end, leap_right(end, end + std::min(room, PageTable::kAddressSpaceSize - end)));
+		if (grows_left && room != 0 && begin > room) {
+			begin = std::min(begin, leap_left(begin - room, begin));
+			first = find_first(begin);
+			begin = std::min(begin, first->first);
+		}
+		for (; last != m_buffers.end() && last->first < end; ++last) {
+			const auto& buffer = m_slot_buffers[last->second];
+			end                = std::max(end, buffer.CpuAddress() + buffer.Size());
+		}
+		if (end - begin >= uint64_t {256} << 20u)
+			std::printf("Buffers: a buffer of %llu MiB grows to %llu MiB, %llu MiB more as room\n",
+			            static_cast<unsigned long long>(largest >> 20u), static_cast<unsigned long long>(before >> 20u),
+			            static_cast<unsigned long long>((end - begin - before) >> 20u));
 	}
 	return {first, last, begin, end, has_stream_leap};
 }
