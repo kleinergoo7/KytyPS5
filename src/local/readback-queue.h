@@ -27,6 +27,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <span>
 #include <utility>
 
@@ -115,6 +116,14 @@ public:
 	}
 #endif
 
+	// The copies of final bytes recorded and submitted by the GPU thread (Copy): on a Steam Deck's GPU with RADV, where
+	// the guest waited less (1.48 -> 1.09 ms at 1-1); on an RTX 5090 they cost the render thread 0.4 ms a frame for no
+	// frame rate (the worker keeps up there). KYTY_READBACK_DIRECT=0/1 decides otherwise.
+	static bool DirectCopies(const Libs::Graphics::GraphicContext& graphics) {
+		const char* value = std::getenv("KYTY_READBACK_DIRECT");
+		return value != nullptr && *value != '\0' ? *value != '0' : graphics.steam_deck_radv;
+	}
+
 	explicit Queue(Libs::Graphics::GraphicContext& graphics)
 	    :
 #ifdef KYTY_LOCAL_VULKAN_RECORDING
@@ -122,7 +131,7 @@ public:
 #else
 	      d(VULKAN_HPP_DEFAULT_DISPATCHER),
 #endif
-	      m_device(graphics.device), m_queue(graphics.readback_queue) {
+	      m_device(graphics.device), m_queue(graphics.readback_queue), m_direct_copies(DirectCopies(graphics)) {
 		VkCommandPoolCreateInfo pool {};
 		pool.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		pool.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
@@ -155,7 +164,7 @@ public:
 	// `wait_done`: the timeline is there already. Then, when the worker has handed all of this queue's earlier copies to
 	// the driver, this thread records and submits the copy (no wait-before-signal, nothing of the worker's in the pool):
 	// the guest reading final bytes does not wait for the worker to replay the graphics work queued ahead of the copy
-	// (~0.4 ms on a Steam Deck at 1-1).
+	// (~0.4 ms on a Steam Deck at 1-1). Only where DirectCopies.
 	uint64_t Copy(std::span<const Region> regions, VkBuffer destination, VkSemaphore timeline,
 	              uint64_t wait_value, bool wait_done = false) {
 		const uint64_t value   = ++m_submitted;
@@ -167,7 +176,7 @@ public:
 		LiveTrace::Event(LiveTrace::RbEnqueue, value, wait_value);
 		const SubmitPacket packet {m_queue, command, timeline, wait_value, m_semaphore, value, &m_handed};
 #ifdef KYTY_LOCAL_VULKAN_RECORDING
-		const bool direct = wait_done && m_handed.load(std::memory_order_acquire) == value - 1;
+		const bool direct = wait_done && m_direct_copies && m_handed.load(std::memory_order_acquire) == value - 1;
 		if (direct) m_worker_records = false;
 		// With deferred submits the worker records the command buffer too: the driver calls leave the GPU thread
 		// (~1.3% of it at 1-1, ~50 readbacks a frame).
@@ -260,6 +269,7 @@ private:
 	std::array<std::pair<VkSemaphore, uint64_t>, Buffers> m_waits {}; // each copy's graphics timeline wait (stall reports)
 	uint64_t                                 m_submitted = 0;
 	std::atomic<uint64_t>                    m_handed {0}; // the last copy handed to the driver (by either thread)
+	bool                                     m_direct_copies = false; // (DirectCopies)
 	bool                                     m_worker_records = false; // the worker may record into the pool
 	std::atomic<uint64_t>                    m_known {0};
 };

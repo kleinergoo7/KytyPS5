@@ -678,6 +678,7 @@ static void VulkanInitSubgroupSizeControl(vk::PhysicalDevice physical_device,
 	const bool  wanted  = setting != nullptr && *setting != '\0' ? std::string_view(setting) != "0"
 	                                                             : amd_rdna3_or_later || steam_deck_radv;
 	graphics.compute_wave64_native = graphics.compute_subgroup_size_control_enabled && wanted;
+	graphics.steam_deck_radv       = steam_deck_radv;
 	std::printf("Vulkan compute wave64: %s (%s, device 0x%04x:0x%04x)\n",
 	            graphics.SupportsComputeWave64() ? "native" : "emulated on 32-lane subgroups",
 	            setting != nullptr && *setting != '\0' ? "KYTY_COMPUTE_WAVE64"
