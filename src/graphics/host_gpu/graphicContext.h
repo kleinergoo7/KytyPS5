@@ -62,6 +62,8 @@ struct GraphicContext {
 	bool                               maintenance5_enabled                  = false;
 	// VK_NV_copy_memory_indirect: an upload prologue's copies are one command (BufferCache::UploadDirtyRanges).
 	bool                               copy_memory_indirect_enabled          = false;
+	// KYTY_PIPELINE_STATS (diagnostic): VK_KHR_pipeline_executable_properties, the driver's statistics of pipelines.
+	bool                               pipeline_statistics_enabled           = false;
 	// False (the emulator): the driver keeps no copy of its own of the pipelines it makes (the
 	// precompile's captures of static cache hits come from that copy).
 	bool                               pipeline_binary_internal_cache        = true;

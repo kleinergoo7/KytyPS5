@@ -450,9 +450,9 @@ std::shared_ptr<BufferCache::GuestReadback> BufferCache::BeginGuestReadback(
 			regions.push_back(
 			    {envelope.buffer->Handle(), {envelope.source, envelope.cursor, envelope.size}});
 		request->parts = std::move(parts);
-		request->queue_value = m_readback_queue->Copy(regions, download->Handle(),
-		                                              m_scheduler.GetMasterSemaphore().Handle(),
-		                                              request->producer_tick);
+		request->queue_value = m_readback_queue->Copy(
+		    regions, download->Handle(), m_scheduler.GetMasterSemaphore().Handle(), request->producer_tick,
+		    m_scheduler.GetMasterSemaphore().KnownGpuTick() >= request->producer_tick);
 		LiveTrace::Event(LiveTrace::RbFast, begin, (end - begin) | request->producer_tick << 32u);
 		m_download_queue_values[slot] = request->queue_value;
 		request->tick                 = m_scheduler.CurrentTick();
