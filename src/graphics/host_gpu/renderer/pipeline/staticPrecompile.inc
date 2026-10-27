@@ -1341,6 +1341,22 @@ bool PipelineCache::MergeBinaryShards(GraphicContext& graphics, bool prune, bool
 	}
 	PipelineCacheLog("Static pipeline binaries: merged {} shards{}, {} pipelines{}", files.size(),
 	                 prune ? " (pruned)" : "", writer.Pipelines(), merged ? "" : ": FAILED");
+	if (!merged) {
+		// Why (issue #225: every shard done, then this): the new store not written (a drive without room for it, or a
+		// FAT32 one, which holds no file of 4 GiB: the store is ~5.5 GiB), or not put in place (the store open in a
+		// running game).
+		std::error_code space_error;
+		const auto      space  = std::filesystem::space(path.parent_path(), space_error);
+		const auto      system = LocalPlatform::FileSystemName(Common::PathToString(path.parent_path()));
+		const auto      what   = saved ? "the new store could not replace the old one: " + error.message()
+		                               : std::string("the new store could not be written");
+		const auto      fat    = system == "FAT32" || system == "FAT"
+		                             ? ", a " + system + " drive, which holds no file of 4 GiB or more: move the emulator's "
+		                                                 "folder to an NTFS or exFAT drive"
+		                             : std::string();
+		PipelineCacheLog("Static pipeline binaries: {}; {} GiB free on its drive{}", what,
+		                 space_error ? 0 : space.available >> 30u, fat);
+	}
 	return merged;
 }
 

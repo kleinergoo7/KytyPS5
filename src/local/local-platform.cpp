@@ -1,6 +1,7 @@
 #include "local-platform.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -56,6 +57,7 @@
 #if defined(__linux__)
 #include <linux/membarrier.h>
 #include <malloc.h>
+#include <sys/vfs.h>
 #endif
 #endif
 
@@ -1286,6 +1288,24 @@ std::string ExecutablePath() {
 	}
 }
 
+std::string FileSystemName(const std::string& path) {
+	const int            length = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
+	std::vector<wchar_t> wide(length > 0 ? static_cast<size_t>(length) : 1, L'\0');
+	if (length <= 0 || MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wide.data(), length) != length) return {};
+	std::array<wchar_t, MAX_PATH + 1> volume {};
+	std::array<wchar_t, MAX_PATH + 1> name {};
+	if (GetVolumePathNameW(wide.data(), volume.data(), static_cast<DWORD>(volume.size())) == FALSE ||
+	    GetVolumeInformationW(volume.data(), nullptr, 0, nullptr, nullptr, nullptr, name.data(),
+	                          static_cast<DWORD>(name.size())) == FALSE)
+		return {};
+	std::string result;
+	for (const wchar_t c: name) {
+		if (c == L'\0') break;
+		result += static_cast<char>(c < 0x80 ? c : '?');
+	}
+	return result;
+}
+
 bool WriteHeapHistogram(const char* path) {
 	std::vector<HANDLE> heaps(256);
 	const DWORD         count = GetProcessHeaps(static_cast<DWORD>(heaps.size()), heaps.data());
@@ -2217,6 +2237,17 @@ std::string ExecutablePath() {
 	std::error_code error;
 	const auto      path = std::filesystem::read_symlink("/proc/self/exe", error);
 	return error ? std::string() : path.string();
+}
+
+std::string FileSystemName(const std::string& path) {
+#if defined(__linux__)
+	struct statfs info {};
+	if (statfs(path.c_str(), &info) != 0) return {};
+	return info.f_type == 0x4d44 ? "FAT32" : ""; // (MSDOS_SUPER_MAGIC: a vfat mount)
+#else
+	(void)path;
+	return {};
+#endif
 }
 
 bool WriteHeapHistogram(const char* path) {

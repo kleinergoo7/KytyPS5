@@ -111,6 +111,9 @@ bool     ResizeScratchFile(uint64_t file, uint64_t size);
 bool     FlushScratchFile(uint64_t file);
 // This executable's path, UTF-8 (empty when unknown).
 std::string ExecutablePath();
+// The file system of the drive holding `path` (UTF-8): "NTFS", "exFAT", "FAT32"... ("FAT32" for a Linux vfat mount; empty
+// when unknown).
+std::string FileSystemName(const std::string& path);
 
 // The process's committed private memory and resident working set, and the machine's physical memory, in
 // bytes (0 where the host cannot tell; KYTY_SIMULATE_RAM_MB=<n> reports n MiB of physical memory, for tests).
