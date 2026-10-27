@@ -2039,7 +2039,10 @@ static std::atomic<uint64_t> g_render_core {0};
 void AvoidCpuList(const char* avoid_cpus) {
 	cpu_set_t  set;
 	const auto core = g_render_core.load(std::memory_order_relaxed);
-	if (const auto avoid = CpuListMask(avoid_cpus) | core; avoid != 0 && sched_getaffinity(0, sizeof(set), &set) == 0) {
+	// With the render thread's core kept for it, that core is what other threads avoid, not the list (KYTY_RENDER_CPUS,
+	// e.g. "1-7": what the render thread may run on, which left a helper born on its CPU only CPU 0).
+	if (const auto avoid = core != 0 ? core : CpuListMask(avoid_cpus);
+	    avoid != 0 && sched_getaffinity(0, sizeof(set), &set) == 0) {
 		for (int cpu = 0; cpu < 64; ++cpu)
 			if ((avoid >> cpu) & 1u) CPU_CLR(cpu, &set);
 		// (A thread the render thread made inherits its one CPU: the process's other CPUs instead.)
