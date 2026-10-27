@@ -44,7 +44,7 @@ next precompile (a new install, or after a graphics driver update) brings lighte
 - **Steam Deck** (Linux package): the Deck's GPU now runs the game's 64-wide compute shaders natively (23% less GPU
   time in them; 20.6 to 22.1 fps at 1-1 with the GPU held at 1600 MHz), and the emulator's own GPU work for its memory
   tracking is lighter on every graphics card (7.2 to 0.9 ms a frame on the Deck). Not 30 fps yet.
-- **Thanks** to @DevList1454 for PR #219, and to @crni20zd, @Psychowarden, @javsp, @ft1704, @Myoko and @brokeneggg for
+- **Thanks** to @DevList1454 for PR #219, and to @crni20zd, @Psychowarden, @javsp, @ft1704, @thxnk420, @Myoko and @brokeneggg for
   their reports and tests.
 
 ## New in v20261026
@@ -137,7 +137,7 @@ the new shader hints (#212).
 - **Steam Deck**（Linux 版）：Deck 的 GPU 现在原生运行游戏的 64 宽计算着色器（这些着色器的 GPU 时间少 23%；GPU 固定
   1600 MHz 时，1-1 从 20.6 提升到 22.1 fps）；模拟器用于内存跟踪的 GPU 工作在所有显卡上都更轻（Deck 上每帧 7.2 降到
   0.9 ms）。离 30 fps 还有距离。
-- **感谢** @DevList1454 的 PR #219，以及 @crni20zd、@Psychowarden、@javsp、@ft1704、@Myoko 和 @brokeneggg 的反馈与测试。
+- **感谢** @DevList1454 的 PR #219，以及 @crni20zd、@Psychowarden、@javsp、@ft1704、@thxnk420、@Myoko 和 @brokeneggg 的反馈与测试。
 
 ## v20261026 的变化
 
