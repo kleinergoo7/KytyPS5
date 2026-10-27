@@ -1026,6 +1026,8 @@ struct FgRefusal {
 constexpr auto     FgRetry    = std::chrono::seconds(30);
 constexpr uint32_t FgRefusals = 8;
 FgRefusal          g_fg_refused;
+// Since when the frames' render size has been half the feature's or less, the backbuffer the same (zero: not now).
+std::chrono::steady_clock::time_point g_fg_small_since {};
 vk::Extent2D      g_fg_backbuffer {}, g_fg_render {};
 vk::Format        g_fg_format = vk::Format::eUndefined;
 std::atomic<bool> g_fg_discontinuity {false}; // a frame with inputs left unshown (NoteDroppedFrame)
@@ -2785,6 +2787,23 @@ uint32_t Generate(GraphicContext& graphics, vk::CommandBuffer command, const Fra
 	}
 	const auto count = static_cast<uint32_t>(std::min<size_t>(outputs.size(), static_cast<size_t>(g_generate)));
 	if (count == 0) return 0;
+	// A render size half the feature's or less, the backbuffer the same (#215: 646x270 against 2584x1080, a few times an
+	// hour, the game's menus or loading): those frames go without DLSS-G and the feature stays for the size that comes
+	// back (made again at each change, it took the memory twice over each time; one such remake ran out of it). Ten
+	// seconds of it: made for that size.
+	const bool small = g_fg_created && g_fg_backbuffer == backbuffer.extent && g_fg_format == backbuffer.format &&
+	                   inputs->render_extent.width * 2 <= g_fg_render.width &&
+	                   inputs->render_extent.height * 2 <= g_fg_render.height;
+	if (!small) {
+		g_fg_small_since = {};
+	} else {
+		const auto now = std::chrono::steady_clock::now();
+		if (g_fg_small_since == std::chrono::steady_clock::time_point {}) g_fg_small_since = now;
+		if (now - g_fg_small_since < std::chrono::seconds(10)) {
+			g_fg_history = false;
+			return 0;
+		}
+	}
 	if (!g_fg_created || g_fg_backbuffer != backbuffer.extent || g_fg_format != backbuffer.format ||
 	    g_fg_render != inputs->render_extent) {
 		const auto now = std::chrono::steady_clock::now();
