@@ -11,6 +11,7 @@ settles, measures with the Deck's telemetry (GPU busy/clock/power, CPU clocks, m
   deckbench.py stop
 """
 import argparse
+import collections
 import json
 import os
 import shutil
@@ -20,6 +21,9 @@ import sys
 import threading
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+import gpumetrics  # noqa: E402
 
 HOME = Path.home()
 GAME = HOME / 'Games' / 'PPSA01341-app0.zar'
@@ -38,6 +42,11 @@ PRESETS = {
     },
     'none': {},
 }
+# 'deck': 'lowest' and the effects whose GPU time the Steam Deck cannot spare (same-boot A/B, deckab.py).
+DECK_EFFECTS_OFF = ('r_motionBlurEnable=false;r_dofEnable=false;r_vignetteEnable=false;r_ssrMethod=0;'
+                    'r_contactShadowsEnabled=false;r_tessellationEnable=false;r_bloomEnable=false')
+PRESETS['deck'] = {**PRESETS['lowest'],
+                   'KYTY_GAME_CONVARS': PRESETS['lowest']['KYTY_GAME_CONVARS'] + ';' + DECK_EFFECTS_OFF}
 SESSION = {'XDG_RUNTIME_DIR': f'/run/user/{os.getuid()}',
            'DBUS_SESSION_BUS_ADDRESS': f'unix:path=/run/user/{os.getuid()}/bus'}
 
@@ -102,7 +111,8 @@ class Live:
 
 
 class Telemetry(threading.Thread):
-    """GPU busy %, GPU clock, package power, CPU clocks, memory and swap every half second."""
+    """GPU busy %, GPU clock, package power, CPU clocks, memory and swap every half second; with gpu_metrics
+    (gpumetrics.py) the power by rail (cpu_w, gfx_w) and the share of samples each SMU limit held the clocks."""
 
     def __init__(self):
         super().__init__(daemon=True)
@@ -132,13 +142,25 @@ class Telemetry(threading.Thread):
                 'cpu_mhz': sum(cpu) / len(cpu) if cpu else None,
                 'mem_avail_mb': kb('MemAvailable'),
                 'swap_used_mb': kb('SwapTotal') - kb('SwapFree'),
+                **self.metrics(),
             })
+
+    @staticmethod
+    def metrics():
+        try:
+            m = gpumetrics.read()
+            return {'cpu_w': m['cpu_w'], 'gfx_w': m['gfx_w'], 'limits': m['limits']}
+        except (OSError, KeyError, struct.error):
+            return {'cpu_w': None, 'gfx_w': None, 'limits': []}
 
     def summary(self):
         def avg(key):
             values = [s[key] for s in self.samples if s[key] is not None]
             return round(sum(values) / len(values), 1) if values else None
+        limits = collections.Counter(name for s in self.samples for name in s['limits'])
         return {'gpu_busy': avg('gpu_busy'), 'gpu_mhz': avg('gpu_mhz'), 'power_w': avg('power_w'),
+                'cpu_w': avg('cpu_w'), 'gfx_w': avg('gfx_w'),
+                'limits': {name: round(count / len(self.samples), 2) for name, count in limits.most_common()},
                 'cpu_mhz': avg('cpu_mhz'),
                 'mem_avail_min_mb': round(min((s['mem_avail_mb'] for s in self.samples), default=0)),
                 'swap_used_max_mb': round(max((s['swap_used_mb'] for s in self.samples), default=0))}
@@ -268,6 +290,26 @@ def run(args):
             lines = live.send([f'census {args.census}'], timeout=args.census + 60)
             census.write_text(''.join(line + chr(10) for line in lines if line.startswith('LIVE_CENSUS')))
             result['census'] = str(census)
+        if args.trace > 0 or args.tracew > 0:
+            # The scheduling timeline (live `trace`: guest submits and waits, flips, GPU ticks; live-trace.py frames,
+            # live-trace-report.py); `tracew` adds every GPU write into guest buffers (live-trace.py producers).
+            timeline = folder / 'prof' / f'{args.label}.timeline'
+            timeline.parent.mkdir(exist_ok=True)
+            command, seconds = ('tracew', args.tracew) if args.tracew > 0 else ('trace', args.trace)
+            for line in live.send([f'{command} {seconds} {timeline}'], timeout=seconds + 120):
+                if line.startswith('LIVE_TRACE') and 'tsc_hz=' in line:
+                    Path(f'{timeline}.hz').write_text(line.split('tsc_hz=')[1].split()[0])
+                    if 'base=' in line:
+                        Path(f'{timeline}.base').write_text(line.split('base=')[1].split()[0])
+            pid = subprocess.run(['pgrep', '-x', 'kyty_emulator'], capture_output=True, text=True).stdout.split()[0]
+            names = []
+            for task in Path(f'/proc/{pid}/task').iterdir():
+                try:
+                    names.append(f'{task.name} {(task / "comm").read_text().strip()}')
+                except OSError:
+                    pass
+            Path(f'{timeline}.threads').write_text(''.join(name + chr(10) for name in names))
+            result['timeline'] = str(timeline)
         if args.tracem > 0:
             # GPU time per shader (live `tracem`: a GPU timestamp after every draw and dispatch; live-trace.py marks).
             trace = folder / 'prof' / f'{args.label}.trace'
@@ -275,6 +317,8 @@ def run(args):
             for line in live.send([f'tracem {args.tracem} {trace}'], timeout=args.tracem + 120):
                 if line.startswith('LIVE_TRACE') and 'tsc_hz=' in line:
                     Path(f'{trace}.hz').write_text(line.split('tsc_hz=')[1].split()[0])
+                    if 'base=' in line:
+                        Path(f'{trace}.base').write_text(line.split('base=')[1].split()[0])
             result['trace'] = str(trace)
     finally:
         if not args.keep:
@@ -298,6 +342,8 @@ def main():
     r.add_argument('--shot', action='store_true')
     r.add_argument('--prof', type=float, default=0, help='seconds of process CPU samples after measuring')
     r.add_argument('--tracem', type=float, default=0, help='seconds of GPU time per draw and dispatch after measuring')
+    r.add_argument('--trace', type=float, default=0, help='seconds of the scheduling timeline after measuring')
+    r.add_argument('--tracew', type=float, default=0, help='--trace with every GPU write into guest buffers')
     r.add_argument('--census', type=float, default=0, help='seconds of render-thread census (barrier callers) after measuring')
     r.add_argument('--boot-timeout', type=float, default=600)
     r.add_argument('--keep', action='store_true', help='leave the emulator running')

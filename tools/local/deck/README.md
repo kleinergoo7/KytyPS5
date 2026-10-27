@@ -18,9 +18,18 @@ deck.sh deploy                     # kyty_emulator, translator-id, deckbench.py,
 deck.sh run --label x --settle 240 --measure 20 --spin 10 --prof 10 --tracem 3 --census 5 --set NAME=VALUE
 deck-series.sh "a|options" "b|options"   # one line per run
 deck.sh prof x                     # CPU per thread, module and function (process samples, libraries symbolized)
-deck.sh marks x                    # GPU ms per frame per shader; the emulator's own work by site (Dispatch@fault-process)
+deck.sh marks x [--queue q49]      # GPU ms per frame per shader, by guest queue; barriers by the function recording them
+deck.sh trace x                    # a --trace / --tracew timeline: frames, render-thread gaps and what ended them
 deck.sh census x --kind 13         # render-thread census; the code that recorded each barrier
+deck.sh run --label k --keep ...   # leave the game running, then:
+deck.sh ab "a|+r_bloomEnable=false" "b|!switch=0"   # same-boot steps: engine convars (+) and live switches (!)
+deck.sh ssh 'python3 ~/KytyPS5-dev/decklive.py "capture /home/deck/KytyPS5-dev/prof/cap 1"'  # any live command
 ```
+
+The Deck's clocks (`deck-perf.sh`, run with sudo on the Deck by its owner): `on` holds the GPU at 1600 MHz (as Game
+Mode's Manual GPU Clock), `gpu <MHz>|auto`, `tdp <W>` (3-15), `off`, `status`. With the GPU clock automatic its DVFS
+turns GPU savings into a lower clock (same fps): measure GPU work with it held. `gpumetrics.py` reads the APU's SMU
+limits and power by rail; every run reports them (`limits`: the share of samples each limit held the clocks).
 
 A run boots in the Deck's desktop session (`systemd-run --user`), enters the game with the scripted pad, settles,
 measures (fps, render thread, and the Deck's GPU busy/clock, power, CPU clocks, memory, swap) and stops. The bench save
