@@ -3,6 +3,7 @@
 #include "loader/demonsSoulsSuperResolution.h"
 
 #include "graphics/host_gpu/hostMemory.h"
+#include "graphics/host_gpu/renderer/cache/samplerCache.h"
 #include "graphics/presentation/window.h"
 #include "graphics/host_gpu/renderer/demonsSouls.h"
 #include "loader/elf.h"
@@ -151,6 +152,15 @@ uint32_t WideOutputWidth() {
 	return g_wide_output;
 }
 
+// The upscaler's texture LOD bias for its 3D at `render` lines of an `output`-line image (issue #224): log2(render /
+// output), as DLSS's guide gives it; KYTY_UPSCALE_LOD_BIAS=0 none, a number that bias instead (with an upscaler only).
+static void SetLodBias(uint32_t render, uint32_t output) {
+	const char* value = std::getenv("KYTY_UPSCALE_LOD_BIAS");
+	float       bias  = render != 0 && render < output ? static_cast<float>(std::log2(static_cast<double>(render) / output)) : 0.0f;
+	if (value != nullptr && *value != 0 && std::strcmp(value, "auto") != 0) bias = std::clamp(std::strtof(value, nullptr), -4.0f, 4.0f);
+	Libs::Graphics::SetUpscaleLodBias(bias);
+}
+
 uint32_t AutoHeight(bool upscaler) {
 	const char* setting = std::getenv("KYTY_RENDER_HEIGHT");
 	if (setting != nullptr && *setting != 0 && std::strcmp(setting, "auto") != 0) return 0;
@@ -164,6 +174,10 @@ uint32_t AutoHeight(bool upscaler) {
 }
 
 void Install(Program* program) {
+	// (Until a render height is made below: the PS5 Pro path's own 1512 lines of its 4K output; none for the HD output's.)
+	if (DemonsSoulsSuperResolution::Active() && Libs::Graphics::DemonsSouls::IsSupportedGame())
+		SetLodBias(DemonsSoulsSuperResolution::HdOutput() ? DemonsSoulsHdOutput::UpscaledHeight() : TrinityHeight,
+		           DemonsSoulsSuperResolution::HdOutput() ? DemonsSoulsHdOutput::UpscaledHeight() : OutputHeight);
 	const char* setting = std::getenv("KYTY_RENDER_HEIGHT");
 	const char* wide    = std::getenv("KYTY_RENDER_ASPECT");
 	const bool  numeric   = setting != nullptr && *setting != 0 && std::strcmp(setting, "auto") != 0;
@@ -347,6 +361,7 @@ void Install(Program* program) {
 	    !DemonsSoulsSuperResolution::SetLeastHeight(program, size.height))
 		std::printf("Demon's Souls render size: the super resolution's least height of a known build not found; it "
 		            "runs from 1080 only\n");
+	if (trinity) SetLodBias(size.height, out_height);
 	// (The HD output: display mode 1's own 1600x900.)
 	std::printf("Demon's Souls render size: %s mode renders %ux%u instead of %ux%u (output %ux%u)%s\n",
 	            hd ? "HD" : "performance", size.width, size.height, hd ? ModeWidths[mode] : game_width,

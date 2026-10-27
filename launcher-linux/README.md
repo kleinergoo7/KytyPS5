@@ -35,6 +35,7 @@ can ask y/N and for the sudo password.
 | | Game output 1080p (or Automatic for a 16:9 window up to 1080 lines) | `KYTY_HD_OUTPUT=1` |
 | | Game output 1440p (with DLSS or FSR 3) | `KYTY_OUTPUT_HEIGHT=1440` |
 | | DLSS model | `KYTY_DLSS_PRESET` |
+| | DLSS sharpening Low / Medium / High | `KYTY_DLSS_SHARPNESS=0.3` / `0.6` / `0.9` |
 | | Graphics preset Low / Lowest | `KYTY_GAME_CONVARS` (Demon's Souls), `KYTY_TEXTURE_REDUCE=1` / `2` |
 | | DLSS frame generation 2x-6x | `KYTY_FRAMEGEN=1`-`5` |
 | | DLSS runtime | runs `get-dlss-linux.sh <the emulator's folder>` |
