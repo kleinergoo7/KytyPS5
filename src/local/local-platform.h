@@ -73,6 +73,12 @@ bool FlushProcessWriteBuffers();
 // below-normal priority too: background work that must not hold up the game's threads.
 void AvoidCpuList(const char* avoid_cpus);
 void MakeBackgroundThread(const char* avoid_cpus);
+// Linux, the render thread (KYTY_RENDER_CORE=<cpu>; 0 or off: not; default on the Steam Deck build: 2): the calling
+// thread on that CPU and the core it is on (its SMT siblings) kept for it alone: every other thread of the process, the
+// game's included, is moved off that core now and every 250 ms (a thread of its own; new threads inherit their
+// creator's CPUs). On a 4-core CPU the game's ten job workers shared the render thread's core: its work per frame
+// 31.5 ms with them, 28.4 ms alone. Returns the CPU (-1: not done). Windows: -1.
+int KeepRenderCoreAlone();
 // The calling thread above the normal priority of the game's threads (Windows: THREAD_PRIORITY_HIGHEST; Linux:
 // nice -10 where the nice limit allows, unless KYTY_LINUX_FAST_LOCKS=0): the render thread, which every frame waits for, is not time-sliced against them on its CPUs.
 void MakeCriticalThread();

@@ -970,6 +970,10 @@ void MakeCriticalThread() {
 	(void)SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 }
 
+int KeepRenderCoreAlone() {
+	return -1;
+}
+
 namespace {
 // d3dkmthk.h (WDK) structures for the display's vertical blank, taken from gdi32 at run time.
 using KmtHandle = UINT;
@@ -2029,13 +2033,90 @@ bool CurrentThreadStack(uint64_t* low, uint64_t* high) {
 	return found;
 }
 
+// KeepRenderCoreAlone: the render thread's core (bit n: CPU n), 0 when it shares its core.
+static std::atomic<uint64_t> g_render_core {0};
+
 void AvoidCpuList(const char* avoid_cpus) {
-	cpu_set_t set;
-	if (const auto avoid = CpuListMask(avoid_cpus); avoid != 0 && sched_getaffinity(0, sizeof(set), &set) == 0) {
+	cpu_set_t  set;
+	const auto core = g_render_core.load(std::memory_order_relaxed);
+	if (const auto avoid = CpuListMask(avoid_cpus) | core; avoid != 0 && sched_getaffinity(0, sizeof(set), &set) == 0) {
 		for (int cpu = 0; cpu < 64; ++cpu)
 			if ((avoid >> cpu) & 1u) CPU_CLR(cpu, &set);
+		// (A thread the render thread made inherits its one CPU: the process's other CPUs instead.)
+		if (CPU_COUNT(&set) == 0 && core != 0 && sched_getaffinity(getpid(), sizeof(set), &set) == 0)
+			for (int cpu = 0; cpu < 64; ++cpu)
+				if ((avoid >> cpu) & 1u) CPU_CLR(cpu, &set);
 		if (CPU_COUNT(&set) != 0) (void)sched_setaffinity(0, sizeof(set), &set);
 	}
+}
+
+int KeepRenderCoreAlone() {
+#if defined(__linux__)
+	const char* value = std::getenv("KYTY_RENDER_CORE");
+#if defined(KYTY_STEAM_DECK)
+	if (value == nullptr || *value == '\0') value = "2";
+#endif
+	if (value == nullptr || *value == '\0' || std::strcmp(value, "off") == 0) return -1;
+	char*      end = nullptr;
+	const auto cpu = static_cast<int>(std::strtol(value, &end, 10));
+	if (*end != '\0' || cpu <= 0 || cpu >= 64) return -1;
+	// The core: the CPU's SMT siblings ("2-3", "2,3"); the CPU alone where the file is missing.
+	uint64_t core = uint64_t {1} << cpu;
+	char     path[96];
+	std::snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
+	if (FILE* file = std::fopen(path, "r"); file != nullptr) {
+		char list[64] = {};
+		if (std::fgets(list, sizeof(list), file) != nullptr) {
+			list[std::strcspn(list, "\n")] = '\0';
+			char* save = nullptr;
+			for (char* range = strtok_r(list, ",", &save); range != nullptr; range = strtok_r(nullptr, ",", &save)) {
+				int first = 0, last = 0;
+				const int n = std::sscanf(range, "%d-%d", &first, &last);
+				for (int c = first; n >= 1 && c <= (n == 2 ? last : first) && c < 64; ++c) core |= uint64_t {1} << c;
+			}
+		}
+		std::fclose(file);
+	}
+	// The process may run on more CPUs than the core (else nothing is kept off it).
+	cpu_set_t process;
+	if (sched_getaffinity(getpid(), sizeof(process), &process) != 0 || !CPU_ISSET(cpu, &process)) return -1;
+	uint64_t allowed = 0;
+	for (int c = 0; c < 64; ++c)
+		if (CPU_ISSET(c, &process)) allowed |= uint64_t {1} << c;
+	if ((allowed & ~core) == 0) return -1;
+	cpu_set_t own;
+	MaskToSet(uint64_t {1} << cpu, &own);
+	if (sched_setaffinity(0, sizeof(own), &own) != 0) return -1;
+	g_render_core.store(core, std::memory_order_relaxed);
+	const auto render = static_cast<pid_t>(ThreadId());
+	std::thread([render, core, allowed] {
+		SetThreadName("Kyty.CoreKeeper");
+		(void)setpriority(PRIO_PROCESS, static_cast<id_t>(ThreadId()), 10);
+		cpu_set_t others;
+		MaskToSet(allowed & ~core, &others);
+		(void)sched_setaffinity(0, sizeof(others), &others);
+		for (;;) {
+			if (DIR* tasks = opendir("/proc/self/task"); tasks != nullptr) {
+				while (const dirent* entry = readdir(tasks)) {
+					const auto tid = static_cast<pid_t>(std::strtol(entry->d_name, nullptr, 10));
+					cpu_set_t  set;
+					if (tid <= 0 || tid == render || sched_getaffinity(tid, sizeof(set), &set) != 0) continue;
+					uint64_t mask = 0;
+					for (int c = 0; c < 64; ++c)
+						if (CPU_ISSET(c, &set)) mask |= uint64_t {1} << c;
+					if ((mask & core) == 0) continue;
+					MaskToSet((mask & ~core) != 0 ? mask & ~core : allowed & ~core, &set);
+					(void)sched_setaffinity(tid, sizeof(set), &set);
+				}
+				closedir(tasks);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(250));
+		}
+	}).detach();
+	return cpu;
+#else
+	return -1;
+#endif
 }
 
 void MakeBackgroundThread(const char* avoid_cpus) {

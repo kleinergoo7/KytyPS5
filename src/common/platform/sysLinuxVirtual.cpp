@@ -64,6 +64,12 @@ static void WriteWatchInit() {
 	// VirtualMemory::Init() runs more than once (main and the kernel memory module).
 	if (g_uffd >= 0) return;
 	const char* value = std::getenv("KYTY_UFFD_WP");
+#if defined(KYTY_STEAM_DECK)
+	// On by default in the Steam Deck build (KYTY_UFFD_WP=0: mprotect): there the upload worker's re-arms took 4.4 ms a
+	// frame as mprotect calls, 2.3 ms as write protections; 1-1 at 360p, same boots alternating: stand 29.0/29.3 ->
+	// 29.8/30.2 fps, a camera spin 28.0/26.9 -> 29.4/29.0.
+	if (value == nullptr || value[0] == '\0') value = "1";
+#endif
 	if (value == nullptr || value[0] != '1') return;
 	const int fd = static_cast<int>(syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY));
 	uffdio_api api {};

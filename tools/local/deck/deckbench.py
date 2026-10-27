@@ -264,6 +264,12 @@ def run(args):
             time.sleep(1)
             result['spin'] = measure(live, args.spin, f'{args.label}-spin')
             print(json.dumps(result['spin']), flush=True)
+        if args.walk > 0:
+            # Forward from the bench save's spot (1-1: down the first street, the camera looking ahead).
+            live.send([f'pad 128 0 -1 -1 0 {args.walk + 2}'])
+            time.sleep(1)
+            result['walk'] = measure(live, args.walk, f'{args.label}-walk')
+            print(json.dumps(result['walk']), flush=True)
         if args.shot:
             shot = folder / 'shots' / f'{args.label}.ppm'
             shot.parent.mkdir(exist_ok=True)
@@ -339,6 +345,7 @@ def main():
     r.add_argument('--settle', type=float, default=20)
     r.add_argument('--measure', type=int, default=20)
     r.add_argument('--spin', type=int, default=0)
+    r.add_argument('--walk', type=int, default=0, help='seconds walking forward, measured (after --spin)')
     r.add_argument('--shot', action='store_true')
     r.add_argument('--prof', type=float, default=0, help='seconds of process CPU samples after measuring')
     r.add_argument('--tracem', type=float, default=0, help='seconds of GPU time per draw and dispatch after measuring')
