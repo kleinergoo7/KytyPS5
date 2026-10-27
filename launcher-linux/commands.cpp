@@ -311,12 +311,12 @@ Launch Commands::Play(const GameInfo& game, bool direct) const {
 		else if (!Remove(set, key))
 			Put(set, key, "0");
 	}
-	for (const auto& option: extra.options) {
+	// (Each of them stays: a repeated one, --keymap, is one more, not in place of the one before.)
+	for (const auto& option: extra.options)
 		options.erase(std::remove_if(options.begin(), options.end(),
 		                             [&](const auto& o) { return o[0] == option[0]; }),
 		              options.end());
-		options.push_back(option);
-	}
+	options.insert(options.end(), extra.options.begin(), extra.options.end());
 
 	launch.argv = {context_.run_script.string()};
 	for (const auto& option: options)

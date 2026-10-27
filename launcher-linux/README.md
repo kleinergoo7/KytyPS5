@@ -48,7 +48,7 @@ can ask y/N and for the sudo password.
 | | MangoHud | `MANGO=1` / `0` |
 | | Safe GPU mode | `KYTY_COMPUTE_CHAIN=0` |
 | | Graphics card (more than one) | `KYTY_GPU=<its name>` (the precompile's too) |
-| | Extra options | `KEY=VALUE` (replaces the launcher's; `KEY=` removes it, or sets an emulator default to `0`), `--option value` (replaces the launcher's option of that name), also the Windows form `-Set A=1,B=2` |
+| | Extra options | `KEY=VALUE` (replaces the launcher's; `KEY=` removes it, or sets an emulator default to `0`), `--option value` (replaces the launcher's option of that name; a repeated one such as `--keymap L1=Q --keymap R1=E` keeps each), also the Windows form `-Set A=1,B=2` |
 | Experimental | Lock to 30 fps | `KYTY_FLIP_RATE=1` |
 | | Direct presentation | `KYTY_PRESENT_DIRECT=1` |
 | | AMD Anti-Lag | `KYTY_ANTI_LAG=1`, `KYTY_LOW_LATENCY=1` |
