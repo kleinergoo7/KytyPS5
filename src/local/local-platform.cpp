@@ -1848,6 +1848,13 @@ uint64_t AvailablePhysicalMemory() {
 	return GlobalMemoryStatusEx(&status) != 0 ? status.ullAvailPhys : 0;
 }
 
+CommitState SystemCommit() {
+	MEMORYSTATUSEX status {};
+	status.dwLength = sizeof(status);
+	if (GlobalMemoryStatusEx(&status) == 0) return {};
+	return {status.ullAvailPageFile, status.ullTotalPageFile};
+}
+
 static IDXGIAdapter3* g_video_memory_adapter = nullptr;
 
 bool OpenVideoMemoryAdapter(const uint8_t* luid) {
@@ -2316,6 +2323,20 @@ uint64_t AvailablePhysicalMemory() {
 		std::fclose(file);
 	}
 	return available;
+}
+
+CommitState SystemCommit() {
+	uint64_t limit = 0, committed = 0;
+	if (FILE* file = std::fopen("/proc/meminfo", "r")) {
+		char line[256];
+		while (std::fgets(line, sizeof(line), file) != nullptr) {
+			unsigned long long kib = 0;
+			if (std::sscanf(line, "CommitLimit: %llu kB", &kib) == 1) limit = static_cast<uint64_t>(kib) << 10u;
+			if (std::sscanf(line, "Committed_AS: %llu kB", &kib) == 1) committed = static_cast<uint64_t>(kib) << 10u;
+		}
+		std::fclose(file);
+	}
+	return {limit - std::min(limit, committed), limit};
 }
 
 // (StartHeapTrimmer: glibc's free pages inside its arenas given back, not only the tops'. 0, else

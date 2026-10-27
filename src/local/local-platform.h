@@ -125,6 +125,13 @@ MemoryUse ProcessMemory();
 uint64_t  PhysicalMemory();
 // The physical memory the system can still give without paging (free and standby; Linux: MemAvailable). 0: unknown.
 uint64_t AvailablePhysicalMemory();
+// The memory the process can still commit and the commit limit (RAM and page file: Task Manager's "Committed"; Linux:
+// CommitLimit less Committed_AS, and CommitLimit, which overcommit lets programs pass), in bytes. 0: unknown.
+struct CommitState {
+	uint64_t available = 0;
+	uint64_t limit     = 0;
+};
+CommitState SystemCommit();
 // KYTY_HEAP_TRIM=1 (off by default): the heap's free pages go back to the system on a thread of its
 // own, checked every 30 s, after 64 MiB of growth since the last trim; the first 10 are told.
 // Linux (glibc): malloc_trim (in Demon's Souls 130-150 MiB of its 1 GB of arenas were free chunks
