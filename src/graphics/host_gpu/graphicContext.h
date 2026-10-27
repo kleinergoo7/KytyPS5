@@ -190,6 +190,10 @@ struct GraphicContext {
 	// A budget under 12 GiB (CreateAllocator): less than the game's working set (Boletaria ~11 GB). Textures yield video
 	// memory to render targets and buffers (CreateImage); the pipeline warmup leaves its pipelines to first use.
 	bool                          small_video_memory = false;
+	// The budget alone under 12 GiB, frame generation's and super resolution's reserve not taken off (vma.cpp): the
+	// default of the reduced texture levels (KYTY_TEXTURE_REDUCE), a loss of detail a card short only by that reserve is
+	// spared (issue #215: a 16 GB RTX 5080 with DLSS-G ran without it, 11.3-11.4 GB in use and no frame drops).
+	bool                          small_video_memory_alone = false;
 	// The game buffers' own VMA pool (BufferCache), whose blocks BufferCache::Defragment compacts. KYTY_BUFFER_DEFRAG:
 	// on with a small video memory, 0 off, 1 on any GPU. Null: off, game buffers in VMA's default pools.
 	VmaPool                       game_buffer_pool = nullptr;
