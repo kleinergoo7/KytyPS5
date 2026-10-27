@@ -2324,14 +2324,18 @@ bool FsrMarksHud() {
 	return g_fsr || g_fsr_native;
 }
 
-uint64_t FsrVideoMemoryReserve() {
-	// (Measured with a 2560x1440 swapchain: the driver's share of the video memory 1.33-1.38 GiB with FSR, 0.55-0.70
-	// without; and the HUD images.) KYTY_FSR_VRAM_RESERVE_MB overrides it.
-	static const uint64_t reserve = [] {
+uint64_t VideoMemoryReserve() {
+	// Frame generation's: FSR's measured with a 2560x1440 swapchain (the driver's share of the video memory 1.33-1.38 GiB
+	// with it, 0.55-0.70 without; and the HUD images), DLSS-G's (NGX's optical flow and interpolation, its swapchain
+	// images) and FSR's built in taken alike (issue #215: a 16 GB RTX 5080 with DLSS-G at 3440x1440 left the game a
+	// budget it counted as roomy, kept the texture pools and ran out); KYTY_FSR_VRAM_RESERVE_MB overrides it. The super
+	// resolution's (DLSS's model and history, or FSR 3's built in): 512 MiB more.
+	static const uint64_t generation = [] {
 		const char* value = std::getenv("KYTY_FSR_VRAM_RESERVE_MB");
 		return (value != nullptr ? std::strtoull(value, nullptr, 10) : 1536ull) << 20u;
 	}();
-	return g_fsr ? reserve : 0;
+	const bool upscaling = g_upscale || FsrNative::UpscalerRequested();
+	return (g_generate > 0 || g_fsr ? generation : 0) + (upscaling ? uint64_t {512} << 20u : 0);
 }
 
 void NoteUiCanvas(uint64_t address) {
