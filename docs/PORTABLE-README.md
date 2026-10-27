@@ -381,7 +381,11 @@ With any of them, only your own keys work on the keyboard (none of the layout ab
 - Controls: `Cross Circle Square Triangle L1 R1 L2 R2 L3 R3 Options Up Down Left Right TouchPad TouchPadRight`,
   `LeftStickUp/Down/Left/Right`, `RightStickUp/Down/Left/Right`.
 - Keys: their names on the keyboard (`E`, `Tab`, `Space`, `Escape`, `Left Shift`, `Left Ctrl`, `Return`, ...; also
-  written without the space, as `LeftShift`), or `Mouse:Left`, `Mouse:Right`, `Mouse:Middle`, `Mouse:X1`, `Mouse:X2`.
+  written without the space, as `LeftShift`), or `Mouse:Left`, `Mouse:Right`, `Mouse:Middle`, `Mouse:X1`, `Mouse:X2`,
+  `Mouse:WheelUp`, `Mouse:WheelDown` (each notch of the wheel a short press: `"--keymap", "Up=Mouse:WheelUp"` and
+  `"--keymap", "Down=Mouse:WheelDown"` switch spells and items).
+- A control takes one key and one mouse input (`Up=Up` with `Up=Mouse:WheelUp`: both work); a second key, or a second
+  mouse input, for the same control replaces the first.
 - F7, F8, F9 and F11 stay the emulator's. A line it cannot use is skipped, and the run log says which and why
   (`Input mapping skipped: ...`).
 - An update's `launch.json` replaces yours: keep a copy of your lines.
