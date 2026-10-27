@@ -81,7 +81,8 @@ void MakeCriticalThread();
 int DisplayRefreshHz(void* window);
 // KYTY_RETURN_FOCUS=<window handle> (the launcher's --play: the window that had the focus as it started, Steam's Big
 // Picture when Steam starts the game): the focus handed to that window and `window` (the game's, its HWND) hidden, as
-// the game quits (issue #217). Windows only.
+// the game quits (issue #217). That window gone or hidden: the largest of KYTY_RETURN_FOCUS_PID=<process> (the
+// launcher's parent) or of a process it started. Windows only.
 void ReturnFocus(void* window);
 // Vertical blanks of that display, counted by a thread of their own that waits for each (Windows:
 // D3DKMTWaitForVerticalBlankEvent on the window's display, again when the window moves to another one); a window

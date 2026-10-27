@@ -1070,16 +1070,96 @@ int DisplayRefreshHz(void* window) {
 	return mode.dmDisplayFrequency > 1 ? static_cast<int>(mode.dmDisplayFrequency) : 0;
 }
 
+// The largest visible top-level window of process `pid` or of a process it started: Steam's windows, Big Picture's full
+// screen one among them, belong to the steamwebhelper.exe it starts.
+static HWND LargestWindowOf(DWORD pid) {
+	struct Search {
+		std::vector<DWORD> pids;
+		HWND               best = nullptr;
+		LONG               area = 0;
+	} search {{pid}};
+	if (HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0); snapshot != INVALID_HANDLE_VALUE) {
+		PROCESSENTRY32W entry {};
+		entry.dwSize = sizeof(entry);
+		for (BOOL more = Process32FirstW(snapshot, &entry); more != FALSE; more = Process32NextW(snapshot, &entry)) {
+			if (entry.th32ParentProcessID == pid) search.pids.push_back(entry.th32ProcessID);
+		}
+		CloseHandle(snapshot);
+	}
+	EnumWindows(
+	    [](HWND window, LPARAM parameter) -> BOOL {
+		    auto& s     = *reinterpret_cast<Search*>(parameter);
+		    DWORD owner = 0;
+		    RECT  rect {};
+		    if (GetWindowThreadProcessId(window, &owner) != 0 &&
+		        std::find(s.pids.begin(), s.pids.end(), owner) != s.pids.end() && IsWindowVisible(window) != FALSE &&
+		        GetWindow(window, GW_OWNER) == nullptr && GetWindowRect(window, &rect) != FALSE) {
+			    const LONG area = (rect.right - rect.left) * (rect.bottom - rect.top);
+			    if (area > s.area) {
+				    s.area = area;
+				    s.best = window;
+			    }
+		    }
+		    return TRUE;
+	    },
+	    reinterpret_cast<LPARAM>(&search));
+	return search.best;
+}
+
+// A window for the log: its class and its program ("'SDL_app' of steamwebhelper.exe").
+static std::string DescribeWindow(HWND window) {
+	char  name[64] = {};
+	DWORD pid      = 0;
+	GetClassNameA(window, name, sizeof(name));
+	GetWindowThreadProcessId(window, &pid);
+	char program[MAX_PATH] = "?";
+	if (HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid); process != nullptr) {
+		DWORD size = sizeof(program);
+		if (QueryFullProcessImageNameA(process, 0, program, &size) == FALSE) std::strcpy(program, "?");
+		CloseHandle(process);
+	}
+	const char* file = std::strrchr(program, '\\');
+	return std::string("'") + name + "' of " + (file != nullptr ? file + 1 : program);
+}
+
 void ReturnFocus(void* window) {
 	const char* value = std::getenv("KYTY_RETURN_FOCUS");
 	if (value == nullptr || *value == '\0') return;
-	const auto target = reinterpret_cast<HWND>(static_cast<uintptr_t>(std::strtoull(value, nullptr, 10)));
-	if (target == nullptr || target == static_cast<HWND>(window) || IsWindow(target) == FALSE) return;
+	const auto own     = static_cast<HWND>(window);
+	const auto started = reinterpret_cast<HWND>(static_cast<uintptr_t>(std::strtoull(value, nullptr, 10)));
+	auto       target  = started;
+	// The window that had the focus as the launcher started can be gone or hidden by now (issue #217: Big Picture still
+	// lost it): the largest visible window of the process that started the launcher (Steam) or of one Steam started.
+	if (target == nullptr || target == own || IsWindow(target) == FALSE || IsWindowVisible(target) == FALSE) {
+		std::printf("Focus: the window in front as the game started (%s) is gone or hidden\n", value);
+		const char* pid = std::getenv("KYTY_RETURN_FOCUS_PID");
+		target          = pid != nullptr ? LargestWindowOf(static_cast<DWORD>(std::strtoul(pid, nullptr, 10))) : nullptr;
+	}
+	if (target == nullptr || target == own) {
+		std::printf("Focus: no window to give it back to\n");
+		std::fflush(stdout);
+		return;
+	}
 	// Handed over while the game's window has the focus (Windows lets the process that has it give it away), then the
-	// game's window hidden: hidden first, Windows would give the focus to a window of its own choosing.
+	// game's window hidden: hidden first, Windows would give the focus to a window of its own choosing. Refused (the
+	// focus already elsewhere, say Steam's menu over the game), with the input of the foreground window's thread
+	// attached to this one's.
 	if (IsIconic(target) != FALSE) ShowWindow(target, SW_RESTORE);
-	SetForegroundWindow(target);
-	if (window != nullptr) ShowWindow(static_cast<HWND>(window), SW_HIDE);
+	bool given = SetForegroundWindow(target) != FALSE && GetForegroundWindow() == target;
+	if (!given) {
+		const DWORD foreground = GetWindowThreadProcessId(GetForegroundWindow(), nullptr);
+		const DWORD self       = GetCurrentThreadId();
+		if (foreground != 0 && foreground != self && AttachThreadInput(self, foreground, TRUE) != FALSE) {
+			BringWindowToTop(target);
+			given = SetForegroundWindow(target) != FALSE && GetForegroundWindow() == target;
+			AttachThreadInput(self, foreground, FALSE);
+		}
+	}
+	std::printf("Focus: %s window %p, %s (%s)\n", given ? "given back to" : "not taken by", static_cast<void*>(target),
+	            DescribeWindow(target).c_str(),
+	            target == started ? "the one in front as the game started" : "the largest of the launcher's parent's");
+	std::fflush(stdout);
+	if (own != nullptr) ShowWindow(own, SW_HIDE);
 }
 
 bool StartDisplayVblanks(void* window) {
