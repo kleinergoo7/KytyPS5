@@ -2845,27 +2845,14 @@ void BufferCache::RetireStaleBuffers(uint64_t tick) {
 	constexpr size_t   PressureRetirements = 256;
 	constexpr uint64_t MinTicks            = 120;
 	constexpr uint64_t StaleTicks          = 1800;
-	const auto         now                 = std::chrono::steady_clock::now();
-	m_tick_times[tick % m_tick_times.size()] = now.time_since_epoch().count();
+	m_tick_clock.Begin(tick);
 	if (tick % 30 == 0) {
 		uint64_t video = 0, budget = 0;
 		m_retire_pressure = m_graphics.QueryLocalVideoMemory(&video, &budget) && video >= m_critical_gc_memory;
 	}
 	if (tick <= MinTicks) return;
-	const bool pressure = m_retire_pressure;
-	const auto horizon  = (now - (pressure ? PressureTime : StaleTime)).time_since_epoch().count();
-	// The newest tick that began by the horizon among the ticks the ring holds (their times only grow); when even the
-	// oldest held began after it, the ticks older than the ring.
-	uint64_t first = tick - std::min<uint64_t>(tick, m_tick_times.size() - 1), last = tick;
-	if (m_tick_times[first % m_tick_times.size()] > horizon) {
-		last = first;
-	} else {
-		while (first < last) {
-			const uint64_t middle = first + (last - first + 1) / 2;
-			if (m_tick_times[middle % m_tick_times.size()] <= horizon) first = middle;
-			else last = middle - 1;
-		}
-	}
+	const bool     pressure = m_retire_pressure;
+	const uint64_t last     = m_tick_clock.Before(tick, pressure ? PressureTime : StaleTime);
 	// (Never later than the StaleTicks rule it replaced: at 120 fps, 1800 flips are 15 s.)
 	const uint64_t below = std::min(std::max(last, tick > StaleTicks ? tick - StaleTicks : 0), tick - MinTicks);
 	const size_t   limit = pressure ? PressureRetirements : MaxRetirements;
