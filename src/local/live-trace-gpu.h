@@ -19,6 +19,19 @@ inline thread_local bool g_mark_thread = false;
 inline thread_local VkCommandBuffer g_mark_command = VK_NULL_HANDLE;
 // Nonzero while a guest draw or dispatch is recorded: its own dispatch carries the guest mark.
 inline thread_local uint32_t g_mark_scope = 0;
+// The emulator's own work an emulator-side command belongs to (bits 16-31 of its mark; live-trace.py names them).
+enum MarkSiteId : uint32_t {
+	SiteTilerDetile = 1, SiteTilerTile = 2, SiteTilerImage = 3, SiteTilerD16 = 4, SiteTilerBgra16 = 5,
+	SiteFaultProcess = 6, SiteLodStats = 7,
+};
+inline thread_local uint32_t g_mark_site = 0;
+struct MarkSite {
+	uint32_t previous;
+	explicit MarkSite(uint32_t site): previous(g_mark_site) { g_mark_site = site; }
+	MarkSite(const MarkSite&)            = delete;
+	MarkSite& operator=(const MarkSite&) = delete;
+	~MarkSite() { g_mark_site = previous; }
+};
 
 inline void GpuMarkNow(vk::CommandBuffer command, MarkKind kind, uint64_t shader) {
 	if (!g_marks_on.load(std::memory_order_relaxed) || g_mark_pool == nullptr || !command) return;
@@ -52,7 +65,7 @@ inline void VulkanMark(VkCommandBuffer command, uint32_t id, bool dispatch) {
 	if (!g_marks_on.load(std::memory_order_relaxed) || !g_mark_thread || command != g_mark_command ||
 	    (dispatch && g_mark_scope != 0))
 		return;
-	GpuMarkNow(vk::CommandBuffer(command), MarkVulkan, id);
+	GpuMarkNow(vk::CommandBuffer(command), MarkVulkan, id | uint64_t {g_mark_site} << 16u);
 }
 
 } // namespace LiveTrace

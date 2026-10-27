@@ -231,6 +231,9 @@ VULKAN_MARKS = {1: 'Dispatch', 2: 'DispatchIndirect', 3: 'DispatchBase', 10: 'Co
                 30: 'ClearColorImage', 31: 'ClearDepthStencilImage', 32: 'ClearAttachments', 40: 'BlitImage',
                 41: 'BlitImage2', 42: 'ResolveImage', 43: 'ResolveImage2', 50: 'PipelineBarrier',
                 51: 'PipelineBarrier2'}
+# Bits 16-31 of a kind-4 mark: the emulator's own work it belongs to (MarkSiteId in src/local/live-trace-gpu.h).
+MARK_SITES = {1: 'tiler-detile', 2: 'tiler-tile', 3: 'tiler-image', 4: 'tiler-d16', 5: 'tiler-bgra16',
+              6: 'fault-process', 7: 'lod-stats'}
 
 
 def cmd_marks(t, args):
@@ -271,8 +274,13 @@ def cmd_marks(t, args):
                 after_flip[key] += cost
     print(f'{frames} frames; GPU ms per frame by shader (whole frame | first {args.after} ms after each flip)')
     for key, value in total.most_common(args.top):
-        name = VULKAN_MARKS.get(key[1], str(key[1])) if key[0] == 'vk' else f'{key[1]:#014x}'
-        print(f'  {key[0]:8s} {name:>14s}  {value / frames:6.3f} | {after_flip[key] / frames:6.3f}  '
+        if key[0] == 'vk':
+            name = VULKAN_MARKS.get(key[1] & 0xffff, str(key[1] & 0xffff))
+            if key[1] >> 16:
+                name += '@' + MARK_SITES.get(key[1] >> 16, str(key[1] >> 16))
+        else:
+            name = f'{key[1]:#014x}'
+        print(f'  {key[0]:8s} {name:>28s}  {value / frames:6.3f} | {after_flip[key] / frames:6.3f}  '
               f'({count[key] / frames:.1f}/frame)')
     print(f'  all marks: {sum(total.values()) / frames:.2f} | {sum(after_flip.values()) / frames:.2f}')
     busy = sum(e - s for s, e, tick in t.gpu) / frames

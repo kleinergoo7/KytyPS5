@@ -8,6 +8,7 @@
 #include "graphics/host_gpu/renderer/commandScheduler.h"
 #include "graphics/host_gpu/vulkanCommon.h"
 #include "live-counters.h"
+#include "live-trace-gpu.h"
 
 #include <algorithm>
 #include <bit>
@@ -86,6 +87,7 @@ FaultManager::~FaultManager() {
 }
 
 void FaultManager::ProcessFaultBuffer() {
+	const LiveTrace::MarkSite site(LiveTrace::SiteFaultProcess);
 	if (const auto wait_tick = m_fault_areas[m_current_area]; wait_tick != 0) {
 		m_scheduler.Wait(wait_tick);
 		m_scheduler.PopPendingOperations();

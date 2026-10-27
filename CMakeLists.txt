@@ -178,6 +178,14 @@ endif()
 
 option(KYTY_BUILD_LAUNCHER "Build Qt launcher" ON)
 
+# A build for the Steam Deck (tools/local/deck/build-deck.sh: -march=znver2, Linux): KYTY_STEAM_DECK=1 in the code
+# selects its defaults and code paths: four Zen 2 cores, an RDNA 2 GPU of 8 compute units, 16 GB of memory the two
+# share.
+option(KYTY_STEAM_DECK "Build for the Steam Deck" OFF)
+if(KYTY_STEAM_DECK)
+	add_compile_definitions(KYTY_STEAM_DECK=1)
+endif()
+
 config_compiler_and_linker()
 
 if(KYTY_CLANG_CL)

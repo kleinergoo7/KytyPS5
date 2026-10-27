@@ -5,6 +5,7 @@
 #include "live-census.h"
 #include "live-counters.h"
 #include "live-trace.h"
+#include "live-trace-gpu.h"
 #include "native-resource-state.h"
 #include "async-upload.h"
 #include "parallel-pages.h"
@@ -1231,6 +1232,7 @@ void BufferCache::DownloadBufferMemory(std::span<const DownloadCopy> copies) {
 }
 
 bool BufferCache::TryReportLodStatsOnGpu(uint64_t address, bool reset) {
+    const LiveTrace::MarkSite site(LiveTrace::SiteLodStats);
     constexpr uint64_t ReportSize = 0x840;
     if (address % 4 || !m_resources || !m_resources->IsMapped(address, ReportSize) ||
         !LibKernel::Memory::IsUniqueGuestBackingRange(address, ReportSize) ||
