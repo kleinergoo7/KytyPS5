@@ -21,6 +21,8 @@ namespace Libs::Graphics {
 namespace {
 
 constexpr size_t MaxPageFaults    = 1024;
+// Bitmap words each invocation of fault_buffer_process.comp reads (FAULT_WORDS_PER_INVOCATION in CMakeLists.txt).
+constexpr uint64_t FaultWordsPerInvocation = 16;
 constexpr size_t PageFaultAreaSize = MaxPageFaults * sizeof(uint64_t);
 
 } // namespace
@@ -134,7 +136,7 @@ void FaultManager::ProcessFaultBuffer() {
 	command.bindPipeline(vk::PipelineBindPoint::eCompute, m_fault_process_pipeline);
 	command.pushDescriptorSetKHR(vk::PipelineBindPoint::eCompute,
 	                             m_fault_process_pipeline_layout, 0, writes);
-	const auto num_threads    = BufferCache::CACHING_NUMPAGES / 32;
+	const auto num_threads    = BufferCache::CACHING_NUMPAGES / 32 / FaultWordsPerInvocation;
 	const auto num_workgroups = (num_threads + 63) / 64;
 	command.dispatch(static_cast<uint32_t>(num_workgroups), 1, 1);
 	dependency.pBufferMemoryBarriers = &post_barrier;
