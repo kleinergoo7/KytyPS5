@@ -323,9 +323,9 @@ uint64_t ProbeWorkingSetNs() {
 // PTEs, write protection) do not fault on a page punched under them, whose next access maps a new page. And no block is
 // made the host's first, as Windows does: that invalidated the caches over freed blocks, and the images and buffers that
 // also held live bytes were uploaded again on the render thread. A Steam Deck's world tour (worlds 2-5, Nexus, 1-1; 15 s
-// in each from 40 s after its load) had 1 frame over 50 ms in all without it, 17-25 with it (Valley 7-13), 7-8 with the
-// giving back off; 4.7-5.5 GB given back either way, the emulator's swap 3.0 GB at the end instead of 5.2-5.35 and
-// 1.0 GB available instead of 0.3-0.55.
+// in each from 40 s after its load) had 1 and 9 frames over 50 ms in all without it, 17-25 with it (Valley 7-13), 7-8
+// with the giving back off; 3.1-5.5 GB given back, the emulator's swap 2.7-3.0 GB at the end instead of 5.2-5.35 and
+// 1.0-1.2 GB available instead of 0.3-0.55.
 bool DiscardLocked(uint64_t address, uint64_t size, uint64_t* given) {
 	thread_local std::vector<std::pair<const uint8_t*, uint64_t>> pieces;
 	pieces.clear();
