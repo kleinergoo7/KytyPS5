@@ -117,7 +117,10 @@ The log of each run is in `~/KytyPS5/logs/`; attach it to an issue when somethin
 
 The Steam Deck package holds the Steam Deck build: code tuned for the Deck's Zen 2 CPU, the Deck's defaults built in,
 and the keyboard keys Steam's desktop layout sends left out. The Linux package with its `run-deck.sh` runs the same way
-except for those keys and the CPU tuning. (The two have not been measured side by side yet.) To build the Steam Deck
-version yourself: `tools/local/deck/build-deck.sh` on Linux, or in WSL with a distribution no newer than SteamOS's
-(glibc 2.43; Ubuntu 26.04 matches), which also uses the PGO profile trained on a Deck; `tools/local/deck/README.md` has
+except for those keys and the CPU tuning. Measured side by side on a Deck (the start of Boletaria at `run-deck.sh`'s
+settings, the GPU clock on auto, six boots taking turns), the two ran at the same frame rate: 36.0-36.7 frames a second
+standing and 34.2-34.7 turning the camera, within the spread between runs. A Steam Deck build with the PGO profile
+trained on a Deck (what `build-deck.sh` makes) measured the same. So the Linux package is as fast; the Steam Deck
+package differs in the keys. To build the Steam Deck version yourself: `tools/local/deck/build-deck.sh` on Linux, or in
+WSL with a distribution no newer than SteamOS's (glibc 2.43; Ubuntu 26.04 matches); `tools/local/deck/README.md` has
 the steps and the tools used to measure on the Deck.
