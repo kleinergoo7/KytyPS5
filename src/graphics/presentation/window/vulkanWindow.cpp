@@ -1063,8 +1063,8 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 	    supported_features13.subgroupSizeControl == VK_TRUE;
 
 	auto features13 = required_features13;
-	features13.pNext = robustness2_ext_enabled ? static_cast<void*>(&robustness2)
-	                                           : static_cast<void*>(&features12);
+	// (Without robustness2 the chain still takes the barycentrics where the GPU has them: robustness2.pNext's head.)
+	features13.pNext = robustness2_ext_enabled ? static_cast<void*>(&robustness2) : robustness2.pNext;
 	features13.robustImageAccess   = supported_features13.robustImageAccess;
 	features13.subgroupSizeControl = subgroup_size_control_enabled ? VK_TRUE : VK_FALSE;
 	features13.pipelineCreationCacheControl = supported_features13.pipelineCreationCacheControl;
