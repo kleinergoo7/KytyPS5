@@ -44,8 +44,7 @@ const std::vector<std::string>& GameVariables() {
 	                                             "KYTY_DLSS_PRESET",
 	                                             "KYTY_DLSS_SHARPNESS",
 	                                             "KYTY_FSR_SHARPNESS",
-	                                             "KYTY_AUDIO_OUTPUT",
-	                                             "KYTY_RUN_LOG"};
+	                                             "KYTY_AUDIO_OUTPUT"};
 	return names;
 }
 
@@ -312,8 +311,6 @@ Launch Commands::Play(const GameInfo& game, bool direct) const {
 	Put(set, "MANGO", S().Bool("mangohud") && context_.HasMangoHud() ? "1" : "0");
 	Put(set, "KYTY_GAME", S().Str("game"));
 	if (!context_.emulator.empty()) Put(set, "KYTY_BIN", context_.emulator.string());
-	// (Named to the emulator too: F9's debug snapshot notes the run's log.)
-	Put(set, "KYTY_RUN_LOG", launch.log.string());
 
 	// The extra options: their pairs replace the launcher's (KEY= removes one the launcher set,
 	// else turns the emulator's own default off, 0), their --options the launcher's of the same

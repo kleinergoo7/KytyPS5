@@ -41,7 +41,7 @@ static class Strings {
 		{"app.subtitle", "PS5 emulator for Windows"},
 		{"nav.play", "Play"}, {"nav.display", "Display"}, {"nav.graphics", "Graphics"}, {"nav.game", "Game"},
 		{"nav.shaders", "Shaders"}, {"nav.advanced", "Advanced"},
-		{"nav.hint", "In the game: F8 switches the performance overlay, F9 saves a debug snapshot."},
+		{"nav.hint", "In the game: F8 switches the performance overlay."},
 
 		{"play.choose", "Choose your game"},
 		{"play.checks", "Checks"}, {"play.gamebox", "Game"}, {"play.summary", "Current settings"},
@@ -203,7 +203,7 @@ static class Strings {
 		{"app.subtitle", "Windows 版 PS5 模拟器"},
 		{"nav.play", "开始游戏"}, {"nav.display", "画面"}, {"nav.graphics", "画质"}, {"nav.game", "游戏"},
 		{"nav.shaders", "着色器"}, {"nav.advanced", "高级"},
-		{"nav.hint", "游戏中：F8 切换性能面板，F9 保存调试快照。"},
+		{"nav.hint", "游戏中：F8 切换性能面板。"},
 
 		{"play.choose", "选择游戏"},
 		{"play.checks", "检查"}, {"play.gamebox", "游戏"}, {"play.summary", "当前设置"},

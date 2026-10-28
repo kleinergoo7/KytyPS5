@@ -34,7 +34,7 @@ const Table& English() {
 	    {"nav.advanced", "Advanced"},
 	    {"nav.experimental", "Experimental"},
 	    {"nav.hint",
-	     "In the game: F8 switches the performance overlay, F9 saves a debug snapshot."},
+	     "In the game: F8 switches the performance overlay."},
 
 	    {"play.choose", "Choose your game"},
 	    {"play.checks", "Checks"},
@@ -397,7 +397,7 @@ const Table& Chinese() {
 	    {"nav.shaders", "着色器"},
 	    {"nav.advanced", "高级"},
 	    {"nav.experimental", "实验性"},
-	    {"nav.hint", "游戏中：F8 切换性能面板，F9 保存调试快照。"},
+	    {"nav.hint", "游戏中：F8 切换性能面板。"},
 
 	    {"play.choose", "选择游戏"},
 	    {"play.checks", "检查"},
@@ -708,7 +708,7 @@ const Table& Portuguese() {
 	    {"nav.advanced", "Avançado"},
 	    {"nav.experimental", "Experimental"},
 	    {"nav.hint",
-	     "No jogo: F8 alterna o painel de desempenho, F9 salva um snapshot de depuração."},
+	     "No jogo: F8 alterna o painel de desempenho."},
 
 	    {"play.choose", "Escolha o seu jogo"},
 	    {"play.checks", "Verificações"},

@@ -370,7 +370,6 @@ Default keyboard layout:
 | F7 | Camera with the mouse (press again to release the mouse) |
 | Space, Pause | **Pause / resume the emulation** (careful not to hit Space by accident; once your own keys give Space to the game, only Pause) |
 | F8 | The emulator's overlay: Off, Frame rate, Detailed (the launcher's "Overlay" is where it starts) |
-| F9 | **Debug snapshot**: pauses the game and saves the picture on screen and where you are (`_DebugSnapshots\<date-time>\`: `screen.png`, `info.txt` with the position, the run's log and the switches); F9 again resumes. Attach the folder to an issue when something looks wrong |
 | F11, Alt+Enter | Toggle full screen |
 
 The keyboard has no L2 / R2 by default: use a gamepad when you need them.
@@ -396,7 +395,7 @@ With any of them, only your own keys work on the keyboard (none of the layout ab
   `"--keymap", "Down=Mouse:WheelDown"` switch spells and items).
 - A control takes one key and one mouse input (`Up=Up` with `Up=Mouse:WheelUp`: both work); a second key, or a second
   mouse input, for the same control replaces the first.
-- F7, F8, F9 and F11 stay the emulator's. A line it cannot use is skipped, and the run log says which and why
+- F7, F8 and F11 stay the emulator's. A line it cannot use is skipped, and the run log says which and why
   (`Input mapping skipped: ...`).
 - An update's `launch.json` replaces yours: keep a copy of your lines.
 
@@ -414,7 +413,6 @@ With any of them, only your own keys work on the keyboard (none of the layout ab
 | `hinted-<title>_<version>.seeds` | The recorded play of the package's hints and of your own play with the code of your game files (made by each precompile, from `released-<title>_<version>.seeds` and `recorded-play-<title>_<version>.hints`; the `.seeds` files contain the game's shader code: do not share them) |
 | `launch.json` | The emulator's command line and extra switches; normally left alone |
 | `launcher-settings.json` | The launcher's settings |
-| `_DebugSnapshots` | The F9 debug snapshots (picture, position, log), to attach to an issue |
 | `Content\<title>`, `dlc_emu.ini` | Add-on content (DLC), if you add it (see "Add-on content") |
 
 ## Updating to a newer package
