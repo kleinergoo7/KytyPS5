@@ -1172,11 +1172,20 @@ void ReturnFocus(void* window) {
 			AttachThreadInput(self, foreground, FALSE);
 		}
 	}
+	// Also as Alt+Tab switches to it: Big Picture, in front again and "given back", still showed no focus and took no pad
+	// input until an Alt+Tab (issue #217).
+	if (given) SwitchToThisWindow(target, TRUE);
 	std::printf("Focus: %s window %p, %s (%s)\n", given ? "given back to" : "not taken by", static_cast<void*>(target),
 	            DescribeWindow(target).c_str(),
 	            target == started ? "the one in front as the game started" : "the largest of the launcher's parent's");
 	std::fflush(stdout);
 	if (own != nullptr) ShowWindow(own, SW_HIDE);
+	// (Which window is in front a moment later, the game's hidden: one that took the focus after the hand-off shows here.)
+	std::this_thread::sleep_for(std::chrono::milliseconds(300));
+	const HWND later = GetForegroundWindow();
+	std::printf("Focus: 0.3 s later in front: %s\n",
+	            later == target ? "that window" : later == nullptr ? "no window" : DescribeWindow(later).c_str());
+	std::fflush(stdout);
 }
 
 bool StartDisplayVblanks(void* window) {
