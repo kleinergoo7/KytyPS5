@@ -431,6 +431,10 @@ bool HostInputMapsKey(int key_code) {
 	return map.Custom() && map.FindKey(key_code) != INVALID_CONTROL;
 }
 
+bool HostInputDefaultKeysUsed() {
+	return DefaultKeysUsed();
+}
+
 void HostInputMouseButton(uint8_t mouse_button, bool down) {
 	const auto& map = GetInputMap();
 	if (map.Custom() && mouse_button != 0) {
