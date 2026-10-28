@@ -70,6 +70,8 @@ jobs:
           mkdir -p "$out/tools/local/static-precompile"
           cp "$build/kyty_emulator" "$build/kyty_shader_precompile" "$build/kyty_launcher" "$out"/
           cp tools/local/run_ds.sh precompile-linux.sh tools/local/dlss-bridge/get-dlss-linux.sh "$out"/
+          # The Steam Deck's launch script and its guide (docs/STEAM-DECK.md).
+          cp tools/local/deck/run-deck.sh docs/STEAM-DECK.md docs/STEAM-DECK.zh-CN.md "$out"/
           # DLSS: the bridge's source only (MIT); get-dlss-linux.sh downloads NVIDIA's SDK and builds it on the user's PC,
           # so the package carries none of NVIDIA's files.
           mkdir -p "$out/dlss-bridge"
@@ -82,7 +84,7 @@ jobs:
           cp tools/local/static-precompile/pass-states.json "$out/tools/local/static-precompile/"
           cp tools/local/static-precompile/hints-*.hints "$out/tools/local/static-precompile/" 2>/dev/null || true
           chmod +x "$out/kyty_emulator" "$out/kyty_shader_precompile" "$out/kyty_launcher" "$out/run_ds.sh" \
-            "$out/precompile-linux.sh" "$out/get-dlss-linux.sh"
+            "$out/precompile-linux.sh" "$out/get-dlss-linux.sh" "$out/run-deck.sh"
           cat > "$out/README.md" <<'EOF'
           # KytyPS5 (Linux x64) for Demon's Souls (PPSA01341)
 
@@ -118,7 +120,10 @@ jobs:
           launch translates shaders in the background for a minute or two; later launches are faster.
 
           If the unpacker dropped the files' execute permission ("Permission denied"): `chmod +x kyty_emulator
-          kyty_shader_precompile kyty_launcher run_ds.sh precompile-linux.sh get-dlss-linux.sh`.
+          kyty_shader_precompile kyty_launcher run_ds.sh precompile-linux.sh get-dlss-linux.sh run-deck.sh`.
+
+          On a Steam Deck, start the game with `run-deck.sh` (the Deck's fastest settings): `STEAM-DECK.md` in this
+          package tells how to copy the game and the emulator over, add it to Steam and what frame rates to expect.
 
           Keep the kernel's own CPU scheduler: the emulator places its threads itself (`KYTY_RENDER_CPUS`), and a
           sched_ext scheduler works against that (`scx_lavd`, which CachyOS suggests for games: about 10% slower on an

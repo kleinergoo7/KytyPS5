@@ -9,6 +9,8 @@ One-time setup:
 - On the Deck: SSH on (`passwd`, `sudo systemctl start sshd`), and a key: `ssh-keygen -f ~/.ssh/kyty_deck`, its `.pub`
   appended to the Deck's `~/.ssh/authorized_keys` (the owner types the password once); the key copied into WSL too.
 - The game as `~/Games/PPSA01341-app0.zar` and the release in `~/KytyPS5` (its `_PipelineCache` is shared).
+- To play: `run-deck.sh` (this folder; the Linux package carries it too) starts the game with the Deck's settings; the
+  players' guide is `docs/STEAM-DECK.md`.
 
 The loop (`tools/local/deck/deck.sh`, from Git Bash):
 
