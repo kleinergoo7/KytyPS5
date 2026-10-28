@@ -38,8 +38,9 @@ emulator's memory was in the swap file: close other programs, and keep SteamOS's
 
 In **Desktop Mode** (hold the power button > Switch to Desktop):
 
-1. Open the browser and download `KytyPS5-linux-<version>.zip` from the
-   [releases page](https://github.com/chenxiao07/KytyPS5/releases) (the Linux package, not the Windows one).
+1. Open the browser and download `KytyPS5-steamdeck-<version>.zip` from the
+   [releases page](https://github.com/chenxiao07/KytyPS5/releases): the Steam Deck package. (The Linux package,
+   `KytyPS5-linux-<version>.zip`, works too, with the same `run-deck.sh`; not the Windows one.)
 2. In the file manager (Dolphin), right-click it > Extract > Extract archive here, and rename the folder to `KytyPS5`
    (any name works; this page uses `~/KytyPS5`).
 3. Open Konsole and make the programs executable (the unpacker may drop that):
@@ -112,10 +113,11 @@ equipment, and the Space it sends pauses the emulator (Space again resumes; the 
 
 The log of each run is in `~/KytyPS5/logs/`; attach it to an issue when something goes wrong.
 
-## The Steam Deck build (optional)
+## The Steam Deck package and the Linux package
 
-The Linux package with `run-deck.sh` runs as the Steam Deck build does, except for three things the Steam Deck build has
-built in: code tuned for the Deck's Zen 2 CPU and trained on a Deck (PGO), and the keyboard keys Steam's desktop layout
-sends left out. (The two have not been measured side by side yet.) It is built from the source with
-`tools/local/deck/build-deck.sh` on Linux, or in WSL with a distribution no newer than SteamOS's (glibc 2.43; Ubuntu
-26.04 matches); `tools/local/deck/README.md` has the steps and the tools used to measure on the Deck.
+The Steam Deck package holds the Steam Deck build: code tuned for the Deck's Zen 2 CPU, the Deck's defaults built in,
+and the keyboard keys Steam's desktop layout sends left out. The Linux package with its `run-deck.sh` runs the same way
+except for those keys and the CPU tuning. (The two have not been measured side by side yet.) To build the Steam Deck
+version yourself: `tools/local/deck/build-deck.sh` on Linux, or in WSL with a distribution no newer than SteamOS's
+(glibc 2.43; Ubuntu 26.04 matches), which also uses the PGO profile trained on a Deck; `tools/local/deck/README.md` has
+the steps and the tools used to measure on the Deck.

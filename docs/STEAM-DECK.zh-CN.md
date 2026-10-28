@@ -34,8 +34,8 @@ GPU 1600 MHz（最高）时整体反而更慢。第一次到一个地方会编�
 
 在**桌面模式**下（长按电源键 > 切换到桌面）：
 
-1. 打开浏览器，从[发布页](https://github.com/chenxiao07/KytyPS5/releases)下载 `KytyPS5-linux-<版本>.zip`
-   （Linux 版，不是 Windows 版）。
+1. 打开浏览器，从[发布页](https://github.com/chenxiao07/KytyPS5/releases)下载 `KytyPS5-steamdeck-<版本>.zip`
+   （Steam Deck 版的包；Linux 版 `KytyPS5-linux-<版本>.zip` 配合同一个 `run-deck.sh` 也能用；不要下载 Windows 版）。
 2. 在文件管理器（Dolphin）中右键它 > 解压 > 解压到此处，把文件夹改名为 `KytyPS5`（叫什么都可以；本文用 `~/KytyPS5`）。
 3. 打开 Konsole，给程序加上可执行权限（解压工具可能把它丢掉）：
 
@@ -101,9 +101,9 @@ GPU 1600 MHz（最高）时整体反而更慢。第一次到一个地方会编�
 
 每次运行的日志在 `~/KytyPS5/logs/`；遇到问题时请附在 issue 里。
 
-## Steam Deck 版（可选）
+## Steam Deck 版的包与 Linux 版的包
 
-Linux 版加上 `run-deck.sh` 的运行方式与 Steam Deck 版相同，只有三点是 Steam Deck 版内置的：针对 Deck 的 Zen 2 CPU 优化、
-在 Deck 上训练的 PGO，以及忽略 Steam 桌面布局发送的键盘按键。（两者还没有并排测过帧数。）它需要从源码构建：在 Linux 上，
-或在不比 SteamOS 新的发行版的 WSL 里（glibc 2.43；Ubuntu 26.04 与之相符）运行 `tools/local/deck/build-deck.sh`；
-步骤和在 Deck 上测量用的工具见 `tools/local/deck/README.md`。
+Steam Deck 版的包里是 Steam Deck 版：针对 Deck 的 Zen 2 CPU 优化，内置 Deck 的默认设置，并忽略 Steam 桌面布局发送的键盘按键。
+Linux 版的包加上其中的 `run-deck.sh` 运行方式相同，只是没有这两点。（两者还没有并排测过帧数。）想自己构建 Steam Deck 版：
+在 Linux 上，或在不比 SteamOS 新的发行版的 WSL 里（glibc 2.43；Ubuntu 26.04 与之相符）运行 `tools/local/deck/build-deck.sh`，
+它还会使用在 Deck 上训练的 PGO；步骤和在 Deck 上测量用的工具见 `tools/local/deck/README.md`。
