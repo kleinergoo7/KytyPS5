@@ -871,7 +871,6 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 		fragment_barycentric.pNext = supported_features2.pNext;
 		supported_features2.pNext  = &fragment_barycentric;
 	}
-	}
 	physical_device.getFeatures2(&supported_features2);
 	graphics.copy_memory_indirect_enabled = copy_indirect_extension && supported_copy_indirect.indirectCopy;
 	graphics.pipeline_statistics_enabled  = executable_extension && supported_executables.pipelineExecutableInfo;
