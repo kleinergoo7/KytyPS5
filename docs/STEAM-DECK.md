@@ -22,9 +22,10 @@ the previous one.
 | Nexus | 40-41 |
 
 The frame rate is set by the Deck's 15 W shared between its CPU and its GPU: the emulator needs both. At 1300 MHz the
-GPU leaves the CPU enough power; at 1600 MHz (the most) the whole frame was slower. The first visit to a place
-compiles new shaders, which shows as short stutters (up to ~1.5 s); they are kept in `_PipelineCache`, so the next
-visit is smooth.
+GPU leaves the CPU enough power; at 1600 MHz (the most) the whole frame was slower, and with the clock left on auto
+(Steam's default) a later tour ran 1-3 frames a second slower in the worlds (the Nexus the same). The first visit to a
+place compiles new shaders, which shows as short stutters (up to ~1.5 s); they are kept in `_PipelineCache`, so the
+next visit is smooth.
 
 The settings `run-deck.sh` uses: the launcher's **Lowest** graphics preset (shorter sun shadows, no ambient or torch
 shadows, simpler distant detail, textures a quarter the size), the 3D drawn at 640x360, no projected decals (blood,
