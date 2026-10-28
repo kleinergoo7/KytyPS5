@@ -249,7 +249,8 @@ Launch Commands::Play(const GameInfo& game, bool direct) const {
 			convars = quality == "low"
 			              ? "r_forceViewportHeightForPixelSizeCalc=720;sunShadowMaxDistance=125"
 			              : "r_forceViewportHeightForPixelSizeCalc=480;sunShadowMaxDistance=60;"
-			                "r_enableAmbientShadowing=false;r_enableSpotShadows=false";
+			                "r_enableAmbientShadowing=false;r_enableSpotShadows=false;"
+			                "r_projectedDecalEnable=false";
 		}
 	}
 	// Upscaler "Off" (run-windows.ps1 -Antialiasing off, issue #220): Demon's Souls' TAA off and

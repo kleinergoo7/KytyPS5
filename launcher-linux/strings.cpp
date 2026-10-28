@@ -200,8 +200,8 @@ const Table& English() {
 	                     "leave out their largest "
 	                     "level). Low: shorter sun shadows, simpler distant detail, textures half "
 	                     "the size per side. Lowest: "
-	                     "shorter still, no ambient or torch shadows, textures a quarter the size. "
-	                     "For PCs whose processor "
+	                     "shorter still, no ambient or torch shadows, no decals (blood, scorch marks), "
+	                     "textures a quarter the size. For PCs whose processor "
 	                     "or graphics card limits the frame rate."},
 	    {"framegen", "DLSS frame generation"},
 	    {"framegen.off", "Off"},
@@ -536,7 +536,7 @@ const Table& Chinese() {
 	    {"quality.desc",
 	     "标准：PS5 的画面（显存低于 12 GB "
 	     "时大贴图会去掉最大一级）。低：日光阴影更短，远景细节更简单，贴图边长减半。最低：阴影更短"
-	     "，无环境光遮蔽与火把阴影，贴图为四分之一。适合 CPU 或显卡限制帧率的电脑。"},
+	     "，无环境光遮蔽与火把阴影，无贴花（血迹、焦痕），贴图为四分之一。适合 CPU 或显卡限制帧率的电脑。"},
 	    {"framegen", "DLSS 帧生成"},
 	    {"framegen.off", "关闭"},
 	    {"framegen.ok",
@@ -866,7 +866,7 @@ const Table& Portuguese() {
 	                     "maior nível). Baixa: sombras do sol mais curtas, detalhe distante mais "
 	                     "simples, texturas com metade "
 	                     "do tamanho por lado. Mínima: ainda mais curtas, sem sombras ambientes "
-	                     "nem de tochas, texturas com um "
+	                     "nem de tochas, sem decalques (sangue, marcas de queimado), texturas com um "
 	                     "quarto do tamanho. Para PCs cujo processador ou placa de vídeo limita a "
 	                     "taxa de quadros."},
 	    {"framegen", "Geração de quadros DLSS"},

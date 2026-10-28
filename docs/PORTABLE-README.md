@@ -124,10 +124,11 @@ screens are stretched to the width; the lock-on and enemy health bars stay on th
 2160 at 21:9 ended the game at start-up; the emulator now lowers such a height by itself.
 "Graphics" (Standard by default, as on the PS5) sets how much the game draws. Low picks the level of
 detail as for a 720-line picture and ends sun shadows at 125 m (250 m); Lowest picks detail as for 480
-lines, ends sun shadows at 60 m and turns off ambient shadowing
-and the shadows of torches and other lamps. Each thing drawn costs the emulator processor time, so these
+lines, ends sun shadows at 60 m and turns off ambient shadowing, the shadows of torches and other lamps, and the
+decals laid onto surfaces (blood, scorch marks). Each thing drawn costs the emulator processor time, so these
 help where the processor limits the frame rate (a laptop Ryzen 9 5900HX standing at the Gates of
-Boletaria: 21.9 fps at Standard, 25.6 at Lowest).
+Boletaria: 21.9 fps at Standard, 25.6 at Lowest); the decals alone took Lowest on an RTX 5090 at Boletaria from 86
+to 96 fps standing, the graphics card's work a frame 22% less.
 "Upscaler" (Game by default, as on the PS5) with "DLSS (PS5 Pro path)" runs the game's own PS5 Pro mode:
 its 3D at the render height (1080 at least, or 720 for DLSS's Ultra Performance) is made a real 3840x2160 image by NVIDIA DLSS in place of Sony's
 PS5 Pro upscaler, and the game finishes it at 4K (bloom, depth of field, the HUD), instead of anti-aliasing
@@ -233,7 +234,7 @@ shortcut):
 | `-HdOutput` | The game's own 1080p output (the launcher's "Game output: 1080p"): post-processing and HUD at 1920×1080, the 3D at most 1080 high; with `-Upscaler dlss`, DLSS makes the 1080p picture from it. Without it (and without `-RenderHeight`, `-Upscaler` or `-Aspect`) the game takes it by itself for a window or screen at most 1080 lines high; `-Set KYTY_HD_OUTPUT=0` keeps the 4K output |
 | `-OutputHeight 1440` | With `-Upscaler dlss` or `-Upscaler fsr`: the PS5 Pro path's output at that height (1080–2159, 16:9; 2560×1440 for 1440, the launcher's "Game output: 1440p"), the HUD in the game's 4K layout at that size; `-RenderHeight` picks the mode (1440 DLAA, 960 Quality, 840 Balanced, 720 Performance, 480 Ultra Performance) |
 | `-Aspect 21:9` | The 3D rendered wider (`21:9` or `32:9`) for ultrawide displays; the HUD keeps its shape at the sides; in-game menus, movies and loading screens are stretched to the width (with `-AspectFit` too: movies, the title and loading screens keep their 16:9, with black bars at the sides) |
-| `-Quality low` | How much the game draws: `low` or `lowest` (shorter shadows, simpler distant detail), faster where the processor limits the frame rate |
+| `-Quality low` | How much the game draws: `low` or `lowest` (shorter shadows, simpler distant detail; `lowest` also without ambient and torch shadows and decals), faster where the processor or the graphics card limits the frame rate |
 | `-TextureReduce 2` | Large textures without their largest levels: `1` half the size per side (the default with less than 12 GB of video memory), `2` a quarter, `0` whole |
 | `-Fps120` | The game's frame rate up to 120 fps instead of 60 (the launcher's "Up to 120 fps") |
 | `-Set KYTY_FLIP_RATE=1` | The game locked to a steady 30 fps, at the same game speed: half the work, even frame times; movies and menus stay at 60 (the launcher's Experimental "Lock to 30 fps") |
