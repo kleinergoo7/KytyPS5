@@ -1565,6 +1565,10 @@ void BufferCache::InvalidateMemoryForWrite(uint64_t vaddr, uint64_t size) {
 // under way to the range races the guest's write on the console too.
 void BufferCache::DiscardGpuWrites(uint64_t vaddr, uint64_t size) {
 	LiveCensus::Scope census(LiveCensus::SyncDownload, vaddr >> 20u << 20u, 2);
+	SlowLog::Scope    slow([&](double ms) {
+		std::printf("SLOW DiscardGpuWrites %.1f ms addr=0x%llx size=0x%llx\n", ms, static_cast<unsigned long long>(vaddr),
+		            static_cast<unsigned long long>(size));
+	});
 	const auto end   = vaddr + size;
 	const auto first = vaddr & ~(TRACKER_PAGE_SIZE - 1);
 	const auto last  = (end + TRACKER_PAGE_SIZE - 1) & ~(TRACKER_PAGE_SIZE - 1);

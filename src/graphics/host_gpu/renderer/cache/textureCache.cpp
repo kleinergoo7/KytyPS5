@@ -3827,6 +3827,11 @@ void TextureCache::InvalidateMemory(uint64_t address, uint64_t size) {
 		EXIT("TextureCache: invalid memory-invalidation range\n");
 	}
 	std::scoped_lock lock {m_lock};
+	// (KYTY_SLOW_LOG_MS: the time under the lock, which the render thread waits for.)
+	SlowLog::Scope slow([&](double ms) {
+		std::printf("SLOW TextureCache::InvalidateMemory %.1f ms under its lock addr=0x%llx size=0x%llx\n", ms,
+		            static_cast<unsigned long long>(address), static_cast<unsigned long long>(size));
+	});
 	ReleaseDownloadPages(address, size);
 	InvalidateCpuAliases(address, size);
 }
