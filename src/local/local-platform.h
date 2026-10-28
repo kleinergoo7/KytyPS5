@@ -125,6 +125,11 @@ MemoryUse ProcessMemory();
 uint64_t  PhysicalMemory();
 // The physical memory the system can still give without paging (free and standby; Linux: MemAvailable). 0: unknown.
 uint64_t AvailablePhysicalMemory();
+// The RAM the emulator has: the PC's (PhysicalMemory, so KYTY_SIMULATE_RAM_MB counts) less what other programs held when
+// it started, i.e. what the system could give without paging then plus the emulator's own working set (taken at the
+// first call, made before main; logged once). The memory savings of PCs short of RAM go by it, not by the PC's RAM
+// (issue #228: a 24 GB PC whose other programs held 10 GB ran out of memory at a world load, its savings off). 0: unknown.
+uint64_t EmulatorMemory();
 // The memory the process can still commit and the commit limit (RAM and page file: Task Manager's "Committed"; Linux:
 // CommitLimit less Committed_AS, and CommitLimit, which overcommit lets programs pass), in bytes. 0: unknown.
 struct CommitState {

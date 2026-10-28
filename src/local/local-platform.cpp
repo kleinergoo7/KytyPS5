@@ -2372,6 +2372,23 @@ bool IsAmdSigned(const std::wstring& /*path*/) {
 
 #endif
 
+uint64_t EmulatorMemory() {
+	static const uint64_t memory = [] {
+		const uint64_t total     = PhysicalMemory();
+		const uint64_t available = AvailablePhysicalMemory();
+		const uint64_t own       = ProcessMemory().working_set;
+		const uint64_t usable    = total != 0 && available != 0 ? std::min(total, available + own) : total;
+		std::printf("PC memory: %llu MiB of the PC's %llu MiB for the emulator at start (other programs held %llu MiB); the "
+		            "memory savings of PCs short of RAM %s\n",
+		            static_cast<unsigned long long>(usable >> 20u), static_cast<unsigned long long>(total >> 20u),
+		            static_cast<unsigned long long>((total - usable) >> 20u),
+		            usable != 0 && usable <= (uint64_t {16} << 30u) ? "on (16 GiB or less)" : "off (more than 16 GiB)");
+		std::fflush(stdout);
+		return usable;
+	}();
+	return memory;
+}
+
 void StartHeapTrimmer() {
 	const char* value = std::getenv("KYTY_HEAP_TRIM");
 	if (value == nullptr || value[0] != '1') return;
