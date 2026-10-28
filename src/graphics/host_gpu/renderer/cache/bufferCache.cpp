@@ -99,14 +99,16 @@ struct NativeBufferDownloadScope {
 	~NativeBufferDownloadScope() { --native_buffer_download_depth; }
 };
 
-// KYTY_STAGING_MB: the staging ring's size in MiB, 16 or more (pinned system memory; default
-// 512). Uploads past it take a temporary buffer or the large path (KYTY_STAGING_STATS=1 counts
-// them), and TextureCache's ChunkedUploadMin (256 MiB) does not follow it: below 512, images just
-// under 256 MiB take most of the ring.
-uint64_t StagingRingSize() {
+// KYTY_STAGING_MB: the staging ring's size in MiB, 16 or more (pinned system memory; default 512, 128 with an
+// integrated GPU). Uploads past it take a temporary buffer or the large path (KYTY_STAGING_STATS=1 counts them);
+// TextureCache uploads images from half its size in pieces through it (ChunkedUploadMin). An integrated GPU's video
+// memory is the same RAM: the ring's 512 MiB were taken from the game's (a Steam Deck at 1-1: 128 MiB gave 365-426 MiB
+// of RAM back, the 1080p output's uploads at 360p fitting easily).
+uint64_t StagingRingSize(const GraphicContext& graphics) {
 	const char* value = std::getenv("KYTY_STAGING_MB");
 	const auto  mib = value != nullptr && value[0] != '\0' ? std::strtoull(value, nullptr, 10) : 0;
-	return (mib >= 16 ? mib : 512) * MiB;
+	if (mib >= 16) return mib * MiB;
+	return (graphics.GetPhysicalDeviceProperties().deviceType == vk::PhysicalDeviceType::eIntegratedGpu ? 128 : 512) * MiB;
 }
 
 } // namespace
@@ -1407,7 +1409,7 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
       m_gds_buffer(graphics, scheduler, MemoryUsage::Stream, 0, AllFlags, GdsBufferSize),
       m_lod_stats_buffer(graphics, scheduler, MemoryUsage::Stream, 0, AllFlags, 256 * 16),
       m_memory_tracker(page_manager),
-      m_staging_buffer(graphics, scheduler, MemoryUsage::Upload, StagingRingSize(),
+      m_staging_buffer(graphics, scheduler, MemoryUsage::Upload, StagingRingSize(graphics),
                        AllFlags | vk::BufferUsageFlagBits::eShaderDeviceAddress),
       m_stream_buffer(graphics, scheduler, MemoryUsage::Stream, 64 * MiB),
       m_host_shader_upload(graphics, scheduler, MemoryUsage::Upload, 64 * MiB),
