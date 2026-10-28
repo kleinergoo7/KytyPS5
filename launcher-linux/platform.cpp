@@ -214,7 +214,7 @@ fs::path WriteDesktopEntry(const fs::path& folder, const fs::path& icon, std::st
 	};
 	std::ofstream out(file, std::ios::binary | std::ios::trunc);
 	out << "[Desktop Entry]\nType=Application\nName=KytyPS5\nComment=PS5 emulator (Demon's Souls)\n"
-	    << "Exec=" << quoted((ExecutableFolder() / "kyty_launcher").string()) << "\n"
+	    << "Exec=" << quoted((ExecutableFolder() / "souls-launcher").string()) << "\n"
 	    << "Path=" << folder.string() << "\n";
 	if (!icon.empty()) out << "Icon=" << icon.string() << "\n";
 	out << "Terminal=false\nCategories=Game;Emulator;\n";
@@ -263,7 +263,7 @@ std::vector<GpuInfo> QueryGpus() {
 	if (create == nullptr) return gpus;
 	VkApplicationInfo app {};
 	app.sType            = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	app.pApplicationName = "kyty_launcher";
+	app.pApplicationName = "souls-launcher";
 	app.apiVersion       = VK_API_VERSION_1_0;
 	VkInstanceCreateInfo info {};
 	info.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

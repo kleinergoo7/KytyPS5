@@ -58,7 +58,7 @@ jobs:
         run: |
           ./build-linux.sh kyty_emulator
           ./build-linux.sh kyty_shader_precompile
-          ./build-linux.sh kyty_launcher
+          ./build-linux.sh souls-launcher
 
       - name: Package
         env:
@@ -68,7 +68,7 @@ jobs:
           build=_Build/linux
           out="_Build/package/$PACKAGE"
           mkdir -p "$out/tools/local/static-precompile"
-          cp "$build/kyty_emulator" "$build/kyty_shader_precompile" "$build/kyty_launcher" "$out"/
+          cp "$build/kyty_emulator" "$build/kyty_shader_precompile" "$build/souls-launcher" "$out"/
           cp tools/local/run_ds.sh precompile-linux.sh tools/local/dlss-bridge/get-dlss-linux.sh "$out"/
           # The Steam Deck's launch script and its guide (docs/STEAM-DECK.md).
           cp tools/local/deck/run-deck.sh docs/STEAM-DECK.md docs/STEAM-DECK.zh-CN.md "$out"/
@@ -83,7 +83,7 @@ jobs:
           # the Windows package carries): the first launch lists the game's shaders from its files.
           cp tools/local/static-precompile/pass-states.json "$out/tools/local/static-precompile/"
           cp tools/local/static-precompile/hints-*.hints "$out/tools/local/static-precompile/" 2>/dev/null || true
-          chmod +x "$out/kyty_emulator" "$out/kyty_shader_precompile" "$out/kyty_launcher" "$out/run_ds.sh" \
+          chmod +x "$out/kyty_emulator" "$out/kyty_shader_precompile" "$out/souls-launcher" "$out/run_ds.sh" \
             "$out/precompile-linux.sh" "$out/get-dlss-linux.sh" "$out/run-deck.sh"
           cat > "$out/README.md" <<'EOF'
           # KytyPS5 (Linux x64) for Demon's Souls (PPSA01341)
@@ -102,11 +102,11 @@ jobs:
           The game is Demon's Souls 01.007.000 or 01.005.000, as a folder (the one with `eboot.bin`)
           or as a ZArchive (`.zar`).
 
-          `./kyty_launcher` opens the settings window (the Windows package's KytyLauncher.exe): choose the
+          `./souls-launcher` opens the settings window (the Windows package's KytyLauncher.exe): choose the
           game, the resolution, the upscaler (DLSS, FSR 3), frame generation, the graphics preset and the
           rest, then PLAY. It saves them in `launcher-settings.json` and starts the game through `run_ds.sh`
           in a terminal window with its log. The Shaders page runs the precompile, the Graphics page builds
-          DLSS (below). `./kyty_launcher --play` starts the game with the saved settings without the window
+          DLSS (below). `./souls-launcher --play` starts the game with the saved settings without the window
           (Steam: add it as a non-Steam game). It needs nothing installed: SDL2 and Dear ImGui are built in.
 
           `run_ds.sh` starts the game from a terminal; point it at the game:
@@ -120,7 +120,7 @@ jobs:
           launch translates shaders in the background for a minute or two; later launches are faster.
 
           If the unpacker dropped the files' execute permission ("Permission denied"): `chmod +x kyty_emulator
-          kyty_shader_precompile kyty_launcher run_ds.sh precompile-linux.sh get-dlss-linux.sh run-deck.sh`.
+          kyty_shader_precompile souls-launcher run_ds.sh precompile-linux.sh get-dlss-linux.sh run-deck.sh`.
 
           On a Steam Deck, take the release's Steam Deck package (`KytyPS5-steamdeck-*.zip`, built for it), or start the
           game from this one with `run-deck.sh` (the Deck's fastest settings): `STEAM-DECK.md` in this package tells how
@@ -286,7 +286,7 @@ jobs:
             title="KytyPS5-$tag"
             notes="$(printf '%s\n\n%s\n\n%s' \
               "Windows x64 build of ${GITHUB_SHA::8} for Demon's Souls (PPSA01341, versions 01.007.000 and 01.005.000): KytyPS5-$tag.zip. Unzip it and double-click KytyLauncher.exe (or run.cmd); the README.md inside explains the rest." \
-              "Linux x64 build: KytyPS5-linux-$tag.zip. Unzip it and run ./kyty_launcher (the settings window), or ./run_ds.sh with KYTY_GAME set to the game; the README.md inside explains the rest." \
+              "Linux x64 build: KytyPS5-linux-$tag.zip. Unzip it and run ./souls-launcher (the settings window), or ./run_ds.sh with KYTY_GAME set to the game; the README.md inside explains the rest." \
               "Steam Deck build: KytyPS5-steamdeck-$tag.zip. Unzip it into ~/KytyPS5 and add run-deck.sh to Steam as a non-Steam game; STEAM-DECK.md inside explains the rest.")"
           fi
           if [ -s notes/docs/RELEASE-NOTES.md ]; then notes="$(printf '%s\n\n%s' "$notes" "$(cat notes/docs/RELEASE-NOTES.md)")"; fi
@@ -330,7 +330,7 @@ jobs:
           # A tag's own release, else a new tag named after the package at this commit.
           tag="$GITHUB_REF_NAME"
           [ "$GITHUB_REF_TYPE" = tag ] || tag="$PACKAGE"
-          notes="Linux x64 build of ${GITHUB_SHA::8} for Demon's Souls (PPSA01341, versions 01.007.000 and 01.005.000). Unzip it and run ./kyty_launcher (the settings window), or ./run_ds.sh with KYTY_GAME set to the game; the README.md inside explains the rest."
+          notes="Linux x64 build of ${GITHUB_SHA::8} for Demon's Souls (PPSA01341, versions 01.007.000 and 01.005.000). Unzip it and run ./souls-launcher (the settings window), or ./run_ds.sh with KYTY_GAME set to the game; the README.md inside explains the rest."
           # A tag's release holds both packages, and either job may make it (the other uploads to it): the same title
           # and header whichever does (build.yml, build-linux.yml). v20261024's Linux job came first and titled it as
           # the Linux package's.
@@ -339,7 +339,7 @@ jobs:
             title="KytyPS5-$tag"
             notes="$(printf '%s\n\n%s\n\n%s' \
               "Windows x64 build of ${GITHUB_SHA::8} for Demon's Souls (PPSA01341, versions 01.007.000 and 01.005.000): KytyPS5-$tag.zip. Unzip it and double-click KytyLauncher.exe (or run.cmd); the README.md inside explains the rest." \
-              "Linux x64 build: KytyPS5-linux-$tag.zip. Unzip it and run ./kyty_launcher (the settings window), or ./run_ds.sh with KYTY_GAME set to the game; the README.md inside explains the rest." \
+              "Linux x64 build: KytyPS5-linux-$tag.zip. Unzip it and run ./souls-launcher (the settings window), or ./run_ds.sh with KYTY_GAME set to the game; the README.md inside explains the rest." \
               "Steam Deck build: KytyPS5-steamdeck-$tag.zip. Unzip it into ~/KytyPS5 and add run-deck.sh to Steam as a non-Steam game; STEAM-DECK.md inside explains the rest.")"
           fi
           # The notes of this build (what changed, the per-PC shader caches, frame rates), when the commit has them.

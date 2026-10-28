@@ -1,4 +1,4 @@
-// kyty_launcher: the settings window for Linux (launcher-windows' KytyLauncher.exe), built with the
+// souls-launcher: the settings window for Linux (launcher-windows' KytyLauncher.exe), built with the
 // emulator and linked statically against SDL2 and Dear ImGui: nothing to install. It writes the
 // same launcher-settings.json and starts the game through run_ds.sh with the settings as the
 // emulator's switches (environment variables), the precompile through precompile-linux.sh and
@@ -31,7 +31,7 @@ namespace {
 
 void Usage() {
 	std::printf(
-	    "kyty_launcher: KytyPS5's settings window for Linux\n"
+	    "souls-launcher: KytyPS5's settings window for Linux\n"
 	    "  --play                 start the game with the saved settings, without the window\n"
 	    "  --lang en|zh|pt        the window's language for this run\n"
 	    "  --dry-run              print the scripts the buttons run\n"
@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	if (!video) {
-		std::fprintf(stderr, "kyty_launcher: no display (%s)\n", SDL_GetError());
+		std::fprintf(stderr, "souls-launcher: no display (%s)\n", SDL_GetError());
 		return 1;
 	}
 
@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
 	    SDL_CreateWindow("KytyPS5", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height,
 	                     SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	if (window == nullptr) {
-		std::fprintf(stderr, "kyty_launcher: no window (%s)\n", SDL_GetError());
+		std::fprintf(stderr, "souls-launcher: no window (%s)\n", SDL_GetError());
 		return 1;
 	}
 	SDL_SetWindowMinimumSize(window, std::min(static_cast<int>(900 * window_scale), width),
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
 	    SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (renderer == nullptr) renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 	if (renderer == nullptr) {
-		std::fprintf(stderr, "kyty_launcher: no renderer (%s)\n", SDL_GetError());
+		std::fprintf(stderr, "souls-launcher: no renderer (%s)\n", SDL_GetError());
 		return 1;
 	}
 
@@ -229,7 +229,7 @@ int main(int argc, char* argv[]) {
 				const auto file = screenshots + "/" + std::to_string(shot + 1) + "-" +
 				                  LauncherWindow::PageName(shot) + ".bmp";
 				if (!SaveScreenshot(renderer, file))
-					std::fprintf(stderr, "kyty_launcher: %s not saved (%s)\n", file.c_str(),
+					std::fprintf(stderr, "souls-launcher: %s not saved (%s)\n", file.c_str(),
 					             SDL_GetError());
 				shot_frames = 0;
 				if (++shot >= LauncherWindow::PageCount())

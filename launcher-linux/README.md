@@ -1,4 +1,4 @@
-# kyty_launcher (Linux)
+# souls-launcher (Linux)
 
 The settings window for Linux: the pages and settings of the Windows launcher (`launcher-windows/`), drawn with
 Dear ImGui on SDL2's renderer. Both are linked in statically (the emulator's own `3rdparty/` copies), so the program
@@ -12,11 +12,11 @@ The precompile and DLSS's build (`precompile-linux.sh`, `get-dlss-linux.sh`) run
 can ask y/N and for the sudo password.
 
 ```
-./kyty_launcher                the window
-./kyty_launcher --play         the game with the saved settings, no window (Steam: a non-Steam game); its exit code
-./kyty_launcher --lang pt      the window in English (en), Chinese (zh) or Portuguese (pt) for this run
-./kyty_launcher --dry-run      the scripts the buttons run, printed
-./kyty_launcher --screenshot <folder>   each page as <n>-<page>.bmp
+./souls-launcher                the window
+./souls-launcher --play         the game with the saved settings, no window (Steam: a non-Steam game); its exit code
+./souls-launcher --lang pt      the window in English (en), Chinese (zh) or Portuguese (pt) for this run
+./souls-launcher --dry-run      the scripts the buttons run, printed
+./souls-launcher --screenshot <folder>   each page as <n>-<page>.bmp
 ```
 
 ## Settings and what they set
