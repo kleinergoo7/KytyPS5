@@ -89,6 +89,7 @@ const Table& English() {
 	    {"summary.fps120", "up to 120 fps"},
 	    {"summary.options", "Options"},
 	    {"summary.presentDirect", "direct presentation"},
+	    {"summary.vrrFlips", "VRR flips"},
 	    {"summary.antilag", "Anti-Lag"},
 	    {"summary.fps30", "30 fps lock"},
 	    {"summary.extra", "extra options"},
@@ -332,6 +333,11 @@ const Table& English() {
 	     "swing between 30 and 60; with 2x frame generation it shows 60. Movies and menus stay at "
 	     "60. "
 	     "Smoothest on 60 Hz and 120 Hz displays or with VRR. Replaces \"Up to 120 fps\"."},
+	    {"vrrflips", "Flip frames when ready (VRR displays)"},
+	    {"vrrflips.desc",
+	     "For a display with G-SYNC, FreeSync or VRR on: each frame goes to the screen as soon as it is "
+	     "done instead of on the game's 60 Hz beat, so below 60 fps the motion stays even. A "
+	     "display without VRR shows each frame at its next refresh, as before."},
 	    {"presentdirect", "Direct presentation (VRR displays)"},
 	    {"presentdirect.desc",
 	     "Each frame goes to the display as soon as it is ready, instead of through the presenter "
@@ -443,6 +449,7 @@ const Table& Chinese() {
 	    {"summary.fps120", "最高 120 帧"},
 	    {"summary.options", "选项"},
 	    {"summary.presentDirect", "直接呈现"},
+	    {"summary.vrrFlips", "VRR 即时翻转"},
 	    {"summary.antilag", "Anti-Lag"},
 	    {"summary.fps30", "锁定 30 帧"},
 	    {"summary.extra", "附加参数"},
@@ -640,6 +647,10 @@ const Table& Chinese() {
 	     "帧：处理器和显卡的工作量减半，帧间隔均匀，游戏速度不变。适合帧率在 30 到 60 "
 	     "之间来回跳的电脑；配合 2 倍插帧显示 60 帧。过场动画和菜单仍为 60 帧。在 60 Hz、120 Hz "
 	     "显示器上或开启 VRR 时最平稳。打开后「最高 120 帧」不再生效。"},
+	    {"vrrflips", "画面完成即翻转（VRR 显示器）"},
+	    {"vrrflips.desc",
+	     "适用于开启了 G-SYNC、FreeSync 或 VRR 的显示器：每一帧完成后立即送去显示，而不是按游戏 60 Hz 的节拍，帧数低于 60 时画面运动依然均匀。"
+	     "不支持 VRR 的显示器仍在下一次刷新时显示每一帧，和以前一样。"},
 	    {"presentdirect", "直接呈现（VRR 显示器）"},
 	    {"presentdirect.desc",
 	     "每一帧准备好后立即送到显示器，不经过为保证垂直同步平稳而设的呈现线程。在某些显示器上，只"
@@ -752,6 +763,7 @@ const Table& Portuguese() {
 	    {"summary.fps120", "até 120 fps"},
 	    {"summary.options", "Opções"},
 	    {"summary.presentDirect", "apresentação direta"},
+	    {"summary.vrrFlips", "trocas VRR"},
 	    {"summary.antilag", "Anti-Lag"},
 	    {"summary.fps30", "trava em 30 fps"},
 	    {"summary.extra", "opções extras"},
@@ -999,6 +1011,11 @@ const Table& Portuguese() {
 	                   "que oscilam entre 30 e 60; com geração de quadros 2x mostra 60. Vídeos e "
 	                   "menus ficam em 60. Mais "
 	                   "suave em telas de 60 Hz e 120 Hz ou com VRR. Substitui \"Até 120 fps\"."},
+	    {"vrrflips", "Quadros trocados quando prontos (telas VRR)"},
+	    {"vrrflips.desc",
+	     "Para telas com G-SYNC, FreeSync ou VRR ligado: cada quadro vai para a tela assim que fica "
+	     "pronto, em vez de no ritmo de 60 Hz do jogo, e abaixo de 60 fps o movimento fica regular. "
+	     "Uma tela sem VRR mostra cada quadro na próxima atualização, como antes."},
 	    {"presentdirect", "Apresentação direta (telas VRR)"},
 	    {"presentdirect.desc",
 	     "Cada quadro vai para a tela assim que fica pronto, em vez de passar pela thread de "
