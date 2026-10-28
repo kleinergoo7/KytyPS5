@@ -24,12 +24,30 @@
 #include <iterator>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <vector>
 #include <x86intrin.h>
 
 extern "C" {
 extern volatile std::atomic<uint32_t> kyty_local_async_upload_mode;
+// KYTY_UPLOAD_HELP (live kyty_local_upload_help): whether the render thread's Drain runs the jobs the upload worker is not
+// at itself (Worker::Help): 1 always (the Steam Deck build's default), 0 never, 2 (the default elsewhere) while the
+// process's CPUs are busy, the spin gate shut (fewer than three of them idle, spin-gate.h). On the Deck's four cores the
+// worker, asleep or waiting for a CPU, left the render thread waiting 7.2-7.7 ms a frame, 1.1-1.3 with it helping (stand
+// 30.5 -> 32.8 fps). The 22-CPU desktop held to six of them: the wait 1.8-1.9 -> 0.6 ms, 63.7-66.3 -> 66.6-68.5 fps at
+// 1-1, the same lows; to four: 4.1-4.4 -> 0.9-1.0 ms, +4% (the jobs at normal priority: Help). With CPUs to spare the
+// worker is at its jobs at once, and the render thread taking them gained nothing and made the 1% lows worse (10-27).
+inline volatile std::atomic<uint32_t> kyty_local_upload_help {[] {
+	const char* value = std::getenv("KYTY_UPLOAD_HELP");
+	if (value != nullptr && (value[0] == '0' || value[0] == '1' || value[0] == '2') && value[1] == '\0')
+		return static_cast<uint32_t>(value[0] - '0');
+#if defined(KYTY_STEAM_DECK)
+	return 1u;
+#else
+	return 2u;
+#endif
+}()};
 }
 
 namespace AsyncUpload {
@@ -112,8 +130,16 @@ public:
 	void Help(uint64_t sequence) {
 		if (m_done.load(std::memory_order_acquire) >= sequence) return;
 		const auto start = std::chrono::steady_clock::now();
+		// The jobs at the worker's priority, not the render thread's above the game's threads: held to four CPUs, the game's
+		// threads starved behind them, frames of 100-500 ms with the render thread idle (1-1, 1% lows 25-45 -> 7-13 fps;
+		// at normal priority the lows as without the help, +4% fps). (The Steam Deck build keeps the render thread's core
+		// for it alone, KYTY_RENDER_CORE: nothing of the game's runs there.)
+		std::optional<LocalPlatform::NormalPriority> normal;
 		for (int spin = 0; m_done.load(std::memory_order_acquire) < sequence;) {
 			if (m_process.try_lock()) {
+#if !defined(KYTY_STEAM_DECK)
+				if (!normal) normal.emplace();
+#endif
 				const uint64_t done = m_done.load(std::memory_order_relaxed);
 				const uint64_t head = m_head.load(std::memory_order_acquire);
 				const uint64_t ran  = done < head ? Process(done, head, true) : done;
@@ -124,6 +150,7 @@ public:
 			if (++spin >= 4000) break; // (the worker is at them)
 			_mm_pause();
 		}
+		normal.reset();
 		const auto helped = (std::chrono::steady_clock::now() - start).count();
 		if (m_done.load(std::memory_order_acquire) < sequence) {
 			Kick();
@@ -331,20 +358,16 @@ inline void Wait(uint64_t sequence) {
 	if (sequence != 0) Get().Wait(sequence);
 }
 
-// Render thread: every recorded copy reaches staging memory before this returns. KYTY_UPLOAD_HELP=1 (the Steam Deck
-// build's default): it makes those the worker is not at itself (Worker::Help; 1-1 at 360p on the Deck, same boots
-// alternating: the render thread's wait 7.2-7.7 -> 1.1-1.3 ms a frame, stand 30.5 -> 32.8 fps, a camera spin 30.2 -> 32.0);
-// 0 (elsewhere, not measured there): it waits for the worker to make them.
+// Render thread: every recorded copy reaches staging memory before this returns; the jobs the worker is not at made
+// here where kyty_local_upload_help says (above).
 inline void Drain() {
-	static const bool help = [] {
-		const char* value = std::getenv("KYTY_UPLOAD_HELP");
-#if defined(KYTY_STEAM_DECK)
-		return value == nullptr || value[0] != '0';
-#else
-		return value != nullptr && value[0] == '1';
-#endif
-	}();
-	if (const auto sequence = SubmitSequence(); sequence != 0) help ? Get().Help(sequence) : Get().Wait(sequence);
+	if (const auto sequence = SubmitSequence(); sequence != 0) {
+		const auto help = kyty_local_upload_help.load(std::memory_order_relaxed);
+		if (help == 1 || (help == 2 && !SpinGate::g_open.load(std::memory_order_relaxed)))
+			Get().Help(sequence);
+		else
+			Get().Wait(sequence);
+	}
 }
 
 // Render thread: every recorded job on guest [vaddr, vaddr + size) is done before this returns.

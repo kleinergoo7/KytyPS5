@@ -40,6 +40,7 @@
 #include <string>
 #include <thread>
 #else
+#include <cerrno>
 #include <cstdio>
 #include <ctime>
 #include <dirent.h>
@@ -970,6 +971,16 @@ void MakeBackgroundThread(const char* avoid_cpus) {
 
 void MakeCriticalThread() {
 	(void)SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+}
+
+NormalPriority::NormalPriority() {
+	m_saved   = GetThreadPriority(GetCurrentThread());
+	m_changed = m_saved != THREAD_PRIORITY_ERROR_RETURN && m_saved > THREAD_PRIORITY_NORMAL &&
+	          SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL) != 0;
+}
+
+NormalPriority::~NormalPriority() {
+	if (m_changed) (void)SetThreadPriority(GetCurrentThread(), m_saved);
 }
 
 int KeepRenderCoreAlone() {
@@ -2243,6 +2254,18 @@ void MakeCriticalThread() {
 	}();
 	if (enabled) (void)setpriority(PRIO_PROCESS, static_cast<id_t>(ThreadId()), -10);
 #endif
+}
+
+// (Linux: back to a nice value below 0 is allowed again, RLIMIT_NICE having allowed it the first time.)
+NormalPriority::NormalPriority() {
+	errno           = 0;
+	const int value = getpriority(PRIO_PROCESS, static_cast<id_t>(ThreadId()));
+	m_saved         = value;
+	m_changed = errno == 0 && value < 0 && setpriority(PRIO_PROCESS, static_cast<id_t>(ThreadId()), 0) == 0;
+}
+
+NormalPriority::~NormalPriority() {
+	if (m_changed) (void)setpriority(PRIO_PROCESS, static_cast<id_t>(ThreadId()), m_saved);
 }
 
 int DisplayRefreshHz(void* /*window*/) {
