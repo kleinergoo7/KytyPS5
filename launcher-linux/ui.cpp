@@ -1126,6 +1126,32 @@ void LauncherWindow::GraphicsPage() {
 	    },
 	    T("dlssmodel.desc"));
 
+	// The upscaler's sharpening (KYTY_DLSS_SHARPNESS, KYTY_FSR_SHARPNESS): one row for the chosen
+	// upscaler, each with a value of its own: DLSS none by default (the game's own TAA sharpens,
+	// DLSS does not: issue #224), FSR 3 its 0.6 (issue #227).
+	const std::vector<std::string> sharpnesses {"0", "0.3", "0.6", "0.9"};
+	Row(
+	    "sharpen",
+	    [&] {
+		    const bool        fsr      = commands_.FsrUpscaler();
+		    const std::string key      = fsr ? "fsr_sharpness" : "dlss_sharpness";
+		    const std::string fallback = fsr ? "0.6" : "0";
+		    const auto        stored   = S().Str(key);
+		    const auto        position = [&](const std::string& value) {
+                return static_cast<int>(std::find(sharpnesses.begin(), sharpnesses.end(), value) - sharpnesses.begin());
+		    };
+		    int index = position(stored.empty() ? fallback : stored);
+		    if (index >= 4) index = position(fallback);
+		    if (Combo("##sharpen", &index,
+		              {T("sharpen.off"), T("sharpen.low"), T("sharpen.medium"), T("sharpen.high")}, 300,
+		              commands_.Dlss() || fsr)) {
+			    const auto& chosen = sharpnesses[static_cast<size_t>(index)];
+			    S().Set(key, chosen == fallback ? std::string() : chosen);
+			    Changed();
+		    }
+	    },
+	    T("sharpen.desc"));
+
 	Section("graphics.detail");
 	const std::vector<std::string> qualities {"standard", "low", "lowest"};
 	Row(

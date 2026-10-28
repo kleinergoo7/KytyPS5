@@ -6,6 +6,7 @@
 #include "common/threads.h"
 #include "graphics/host_gpu/vulkanCommon.h" // IWYU pragma: export
 
+#include <functional>
 #include <map>
 #include <mutex>
 #include <tuple>
@@ -186,10 +187,21 @@ struct GraphicContext {
 	// Frees the images kept for reuse (KYTY_IMAGE_POOL): video memory ran out.
 	void                   TrimImagePool();
 	void                   ReportMemoryFallback(const char* what, uint64_t bytes) const;
+	// Out of memory past every fallback (issue #228: VMA's answer is OUT_OF_DEVICE_MEMORY whatever refused it): the
+	// driver's own answer to the same size in video and in system memory, VMA's memory objects against the GPU's limit
+	// and the PC's RAM and commit, the first few times.
+	void                   DescribeAllocationFailure(const char* what, uint64_t bytes) const;
+	// That, then `create` again every 100 ms for up to 10 s while memory may come back (frees in flight, Windows growing
+	// its page file), with the images kept for reuse freed each time; true once it made it.
+	bool                   RetryAllocation(const char* what, uint64_t bytes, const std::function<bool()>& create);
 	// KYTY_SIMULATE_VRAM_MB: the video memory taken at start-up (left out of the budget and usage above).
 	// A budget under 12 GiB (CreateAllocator): less than the game's working set (Boletaria ~11 GB). Textures yield video
 	// memory to render targets and buffers (CreateImage); the pipeline warmup leaves its pipelines to first use.
 	bool                          small_video_memory = false;
+	// The default of the reduced texture levels (KYTY_TEXTURE_REDUCE, vma.cpp): a card of 12 GiB of video memory or
+	// less, by its size, not its budget, which other programs and frame generation move (issue #215: a 16 GB RTX 5080 at
+	// 12.06-12.21 GiB of budget, DLSS-G and DLSS on, ran with full textures at 11.7 GiB in use and no frame drops).
+	bool                          reduce_texture_levels = false;
 	// The game buffers' own VMA pool (BufferCache), whose blocks BufferCache::Defragment compacts. KYTY_BUFFER_DEFRAG:
 	// on with a small video memory, 0 off, 1 on any GPU. Null: off, game buffers in VMA's default pools.
 	VmaPool                       game_buffer_pool = nullptr;
