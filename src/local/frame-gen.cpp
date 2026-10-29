@@ -36,7 +36,10 @@
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <mutex>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 #endif
 
@@ -450,6 +453,17 @@ CameraFrame Decompose(const std::array<float, 16>& m) {
 // image is then never written, the game black (issue #87).
 std::atomic<uint32_t> g_dlss_refusals {0};
 
+// How many times this error has come (its text after Streamline's time stamp and thread, "...[1066s:973ms:006us]").
+uint64_t ErrorRepeats(const char* message) {
+	std::string_view text(message);
+	if (const auto stamp = text.find("us]"); stamp != std::string_view::npos) text.remove_prefix(stamp + 3);
+	static std::mutex                             mutex;
+	static std::unordered_map<uint64_t, uint64_t> counts;
+	const uint64_t                                key = std::hash<std::string_view> {}(text);
+	std::lock_guard                               lock(mutex);
+	return ++counts[key];
+}
+
 void LogMessage(sl::LogType type, const char* message) {
 	LOGF("Streamline[%d]: %s", static_cast<int>(type), message);
 	if (type == sl::LogType::eError && message != nullptr && std::strstr(message, "[sl.dlss]") != nullptr &&
@@ -457,10 +471,19 @@ void LogMessage(sl::LogType type, const char* message) {
 		g_dlss_refusals.fetch_add(1, std::memory_order_relaxed);
 	// KYTY_FRAMEGEN_VERBOSE: every message on stdout (the run log), not only errors.
 	static const bool verbose = std::getenv("KYTY_FRAMEGEN_VERBOSE") != nullptr;
-	if (type == sl::LogType::eError || verbose) {
+	if (type != sl::LogType::eError && !verbose) return;
+	// The same error again: the first 3 printed, then every 1000th with its count. A tag Streamline refused every frame
+	// printed ~115 lines a second, each flushed from the thread that evaluates (issues #85, #129: 143,323 lines).
+	const uint64_t repeats = type == sl::LogType::eError && !verbose && message != nullptr ? ErrorRepeats(message) : 1;
+	if (repeats <= 3) {
 		std::printf("Streamline %s: %s", type == sl::LogType::eError ? "error" : "log", message);
-		std::fflush(stdout);
+		if (repeats == 3) std::printf("Streamline: that error 3 times; from now on every 1000th of it is printed\n");
+	} else if (repeats % 1000 == 0) {
+		std::printf("Streamline error (%" PRIu64 " times): %s", repeats, message);
+	} else {
+		return;
 	}
+	std::fflush(stdout);
 }
 
 template <typename F>
