@@ -1228,6 +1228,14 @@ void Swapchain::Destroy() {
 	if (m_system_overlay != nullptr) {
 		m_system_overlay->ReleaseVulkan();
 	}
+	// FSR 3's frame generation swapchain presents from its own thread and queues, which the waits above do not cover:
+	// its frames may still wait on the semaphores and read the images' views below. Its context goes first (its
+	// destruction waits for its own work), then those. (An RTX 2060 SUPER on a 165 Hz display lost the device leaving
+	// full screen with F11, issue #174; never on an RTX 5090 at 60 Hz.)
+	if (m_handle != nullptr && FrameGen::OwnsSwapchain()) {
+		FrameGen::DestroySwapchain(graphics, m_handle);
+		m_handle = nullptr;
+	}
 
 	for (const auto semaphore: m_image_acquired) {
 		if (semaphore != nullptr) {
