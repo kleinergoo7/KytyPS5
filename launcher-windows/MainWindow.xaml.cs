@@ -422,6 +422,7 @@ partial class MainWindow : Window {
 			case StoreState.Checking: return T("shaders.checking");
 			case StoreState.Current: mark = Mark.Good; return T("shaders.current");
 			case StoreState.Outdated: mark = Mark.Warn; return T("shaders.outdated");
+			case StoreState.OutdatedAll: mark = Mark.Warn; return T("shaders.outdatedAll");
 			case StoreState.None: mark = Mark.Warn; return T("shaders.none");
 			default: return game.Found ? T("shaders.unknown") : null;
 		}

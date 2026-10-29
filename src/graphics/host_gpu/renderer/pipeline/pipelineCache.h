@@ -175,6 +175,10 @@ public:
 	// newer precompile program lists more and makes the seeds again: what is new is compiled then).
 	static bool StaticInputsCurrent(GraphicContext& graphics, const std::filesystem::path& seeds);
 	static bool StaticCacheCurrent(GraphicContext& graphics, const std::filesystem::path& seeds);
+	// The static store was made without a translation feature this precompile translates with that changes nearly every
+	// shader (ShaderRecompiler::Frontend::TranslatorFeaturesBroad): the next precompile compiles it all again, not only
+	// what is new (issue #246: "only what is new" took an hour).
+	static bool StaticCacheRedoesAll();
 	// The caches the shards of a precompile saved next to the static cache, merged into it. With
 	// pipeline binaries and `prune`, the store becomes the shards' pipelines only (a whole run's: what
 	// older runs left that no seed makes any more is dropped).

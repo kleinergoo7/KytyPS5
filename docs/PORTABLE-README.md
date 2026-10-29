@@ -349,7 +349,8 @@ There are two levels of preparation, both specific to the graphics card and driv
      next packages.
    - **After a graphics driver update or a new graphics card it has to be done again**; the launcher
      asks again. It also asks after an update of the emulator that precompiles more: running it again
-     then compiles only what is new.
+     then compiles only what is new, unless that version translates the shaders differently (the launcher
+     then says the precompile compiles all of them once; until then the old ones stay in use).
    - To stop being asked: tick "Don't ask about precompiling again" (delete
      `no-precompile-prompt.txt` to be asked again).
 
@@ -429,7 +430,8 @@ files. The zip holds only the program files (the emulator, its DLLs, the scripts
 README, the licenses and the shader hints under `tools`). Your saves, shader caches, logs and settings
 are in files it does not have (`_SaveData`, `_PipelineCache`, `logs`, `game-path.txt`,
 `launcher-settings.json`, the `seeds-...` files), so they stay as they are. The launcher asks for a new
-precompile only when the new version needs one, and that run compiles only what is new. If you edited
+precompile only when the new version needs one, and that run compiles only what is new (or, when it says so,
+all of them once, for a newer translation). If you edited
 `launch.json` yourself, make the edit again in the new one. A copy of `_SaveData` before an update never
 hurts.
 

@@ -65,6 +65,7 @@ const Table& English() {
 	    {"shaders.checking", "Precompiled shaders: checking…"},
 	    {"shaders.current", "Shaders precompiled for this graphics card"},
 	    {"shaders.outdated", "Shaders: precompile again (only what is new is compiled)"},
+	    {"shaders.outdatedAll", "Shaders: precompile again (this time all of them, once: a newer translation; the current ones work until then)"},
 	    {"shaders.none",
 	     "Shaders not precompiled yet: the game stutters the first time each effect appears"},
 	    {"shaders.unknown", "Precompiled shaders: not known (start the game once)"},
@@ -427,6 +428,7 @@ const Table& Chinese() {
 	    {"shaders.checking", "预编译着色器：检查中…"},
 	    {"shaders.current", "着色器已为本显卡预编译"},
 	    {"shaders.outdated", "着色器需要重新预编译（只编译新增部分）"},
+	    {"shaders.outdatedAll", "着色器需要重新预编译（这次会全部重新编译一遍：换成新的翻译方式；在此之前现有的仍可使用）"},
 	    {"shaders.none", "着色器尚未预编译：每种效果第一次出现时会卡顿"},
 	    {"shaders.unknown", "预编译着色器：状态未知（请先启动一次游戏）"},
 	    {"dlss.ok", "DLSS 可用（已找到 libkyty_dlss.so）"},
@@ -739,6 +741,7 @@ const Table& Portuguese() {
 	    {"shaders.checking", "Shaders pré-compilados: verificando…"},
 	    {"shaders.current", "Shaders pré-compilados para esta placa de vídeo"},
 	    {"shaders.outdated", "Shaders: pré-compile de novo (só o que é novo é compilado)"},
+	    {"shaders.outdatedAll", "Shaders: pré-compile de novo (desta vez todos, uma vez: uma tradução mais nova; os atuais funcionam até lá)"},
 	    {"shaders.none", "Shaders ainda não pré-compilados: o jogo engasga na primeira vez que "
 	                     "cada efeito aparece"},
 	    {"shaders.unknown", "Shaders pré-compilados: desconhecido (inicie o jogo uma vez)"},

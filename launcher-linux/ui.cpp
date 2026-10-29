@@ -790,6 +790,7 @@ void LauncherWindow::PlayPage() {
 			case StoreState::Checking: check(Mark::Busy, T("shaders.checking")); break;
 			case StoreState::Current: check(Mark::Good, T("shaders.current")); break;
 			case StoreState::Outdated: check(Mark::Warn, T("shaders.outdated")); break;
+			case StoreState::OutdatedAll: check(Mark::Warn, T("shaders.outdatedAll")); break;
 			case StoreState::None: check(Mark::Warn, T("shaders.none")); break;
 			default:
 				if (game_.Found()) check(Mark::Busy, T("shaders.unknown"));
@@ -1285,6 +1286,7 @@ void LauncherWindow::ShadersPage() {
 		case StoreState::Checking: state = "shaders.checking"; break;
 		case StoreState::Current: state = "shaders.current"; break;
 		case StoreState::Outdated: state = "shaders.outdated"; break;
+		case StoreState::OutdatedAll: state = "shaders.outdatedAll"; break;
 		case StoreState::None: state = "shaders.none"; break;
 		default: state = game_.Found() ? "shaders.unknown" : "cheats.noGame"; break;
 	}
