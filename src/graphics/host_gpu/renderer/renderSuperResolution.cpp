@@ -473,11 +473,13 @@ void RenderExecutor::RunSuperResolution(CommandBuffer& buffer, const SuperResolu
 	}
 	// The game's reactive mask (slot 6), where given: the pixels Sony's upscaler is told to take from this frame rather
 	// than from its history, the effects drawn with a pattern that changes every frame (fire, smoke, the soul form's
-	// glow). DLSS takes it as its hint towards the current colour (issue #232). FSR 3 does not by default: as its reactive
-	// mask it took whole areas from this frame alone, the 1080p samples showing on a 4K output as a grid of blocks and
-	// sparkling edges (issue #244, an RTX 3080 whose FSR frame generation runs FSR 3 in DLSS's place). Live switch
-	// sr_reactive (KYTY_SR_REACTIVE its start value): 1 DLSS only, 2 FSR 3 too, 0 neither.
-	static auto& reactive_switch = LiveSwitch::Find("sr_reactive", 1);
+	// glow). Off by default: as FSR 3's reactive mask it took whole areas from this frame alone, the 1080p samples showing
+	// on a 4K output as a grid of blocks and sparkling edges (issue #244, an RTX 3080 whose FSR frame generation runs FSR 3
+	// in DLSS's place); DLSS's tag of it (its hint towards the current colour) was refused by Streamline every frame,
+	// "[isFormatSupported] Cannot have undefined format" several times a frame on the console (issue #129), so DLSS never
+	// had it. (The effects' flicker of #232 went with the texture LOD bias for the materials only, fa85edb0.) Live switch
+	// sr_reactive (KYTY_SR_REACTIVE its start value): 0 (default) neither, 1 DLSS, 2 FSR 3 too.
+	static auto& reactive_switch = LiveSwitch::Find("sr_reactive", 0);
 	const bool   reactive_wanted = reactive_switch.load(std::memory_order_relaxed) != 0;
 	TextureBinding reactive_binding;
 	bool           has_reactive = false;
@@ -647,7 +649,7 @@ void RenderExecutor::RunSuperResolution(CommandBuffer& buffer, const SuperResolu
 		describe("depth", depth, bindings[2]);
 		describe("output", output, bindings[3]);
 		if (has_reactive && inputs.reactive.image) describe("reactive mask", cache.GetImage(reactive_binding.image_id), reactive_binding);
-		else std::printf("Super resolution: no reactive mask (%s)\n", !reactive_wanted ? "KYTY_SR_REACTIVE=0"
+		else std::printf("Super resolution: no reactive mask (%s)\n", !reactive_wanted ? "off: KYTY_SR_REACTIVE=1 DLSS, 2 FSR 3 too"
 		                                                              : has_reactive  ? "FSR 3 without it: KYTY_SR_REACTIVE=2 gives it"
 		                                                                              : "the game gave none");
 	}
