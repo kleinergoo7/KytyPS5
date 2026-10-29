@@ -741,7 +741,7 @@ partial class MainWindow : Window {
 
 	void UpdateUpscalerNote() {
 		var chosen = upscaler == null ? S.Str("upscaler") : Value(upscaler) as string;
-		// (DLSS with FSR 3 frame generation: that runs without Streamline, so the emulator upscales with FSR 3 instead.)
+		// (DLSS with FSR 3 frame generation: DLSS upscales through Streamline, AMD's runtime generates past it.)
 		var fsrFrameGen = fsr != null ? fsr.IsChecked == true : context.FsrAvailable && S.Bool("fsr");
 		upscalerNote.Text = chosen == "fsr" ? T("upscaler.fsrNote")
 		                    : chosen == "off" ? T("upscaler.offNote")

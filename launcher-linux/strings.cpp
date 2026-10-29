@@ -221,7 +221,7 @@ const Table& English() {
 	    {"dlssruntime.found", "found in {0}"},
 	    {"dlssruntime.none", "not built yet"},
 	    {"dlssruntime.noScript", "get-dlss-linux.sh is not next to the launcher"},
-	    {"fsr", "AMD FSR 3 frame generation (2x, any graphics card; instead of DLSS)"},
+	    {"fsr", "AMD FSR 3 frame generation (2x, any graphics card; instead of DLSS frame generation)"},
 	    {"fsr.desc", "One generated frame between two of the game's, from its depth and motion. "
 	                 "With VSync the shown "
 	                 "frames are capped at the display's refresh."},
@@ -559,7 +559,7 @@ const Table& Chinese() {
 	    {"dlssruntime.found", "位于 {0}"},
 	    {"dlssruntime.none", "尚未构建"},
 	    {"dlssruntime.noScript", "启动器所在文件夹中没有 get-dlss-linux.sh"},
-	    {"fsr", "AMD FSR 3 帧生成（2 倍，任意显卡；替代 DLSS）"},
+	    {"fsr", "AMD FSR 3 帧生成（2 倍，任意显卡；替代 DLSS 帧生成）"},
 	    {"fsr.desc",
 	     "根据游戏的深度与运动，在两帧之间生成一帧。开启垂直同步时显示帧数不超过显示器刷新率。"},
 
@@ -900,7 +900,7 @@ const Table& Portuguese() {
 	    {"dlssruntime.found", "encontrado em {0}"},
 	    {"dlssruntime.none", "ainda não compilado"},
 	    {"dlssruntime.noScript", "o get-dlss-linux.sh não está ao lado do launcher"},
-	    {"fsr", "Geração de quadros AMD FSR 3 (2x, qualquer placa de vídeo; no lugar do DLSS)"},
+	    {"fsr", "Geração de quadros AMD FSR 3 (2x, qualquer placa de vídeo; no lugar da geração de quadros DLSS)"},
 	    {"fsr.desc", "Um quadro gerado entre dois do jogo, a partir da profundidade e do "
 	                 "movimento. Com VSync os quadros "
 	                 "mostrados ficam limitados à taxa da tela."},
