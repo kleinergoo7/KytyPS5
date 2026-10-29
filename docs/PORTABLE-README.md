@@ -444,6 +444,9 @@ hurts.
   (up to 200). Where the CPU is at its limit and the game makes its sound too late, the sound is stretched a
   little to fill the gaps instead of cutting out (`-Set KYTY_AUDIO_STRETCH=0` turns that off).
 - It uses a lot of memory and video memory: on PCs with too little it may just exit.
+- NVIDIA's Low Latency Mode **Ultra** (NVIDIA Control Panel) makes the emulator's presents wait: uneven frame times
+  (RTSS and the emulator's panel disagree) and fewer frames (issue #129). Set Low Latency Mode to Off or On for
+  `kyty_emulator.exe` (Manage 3D settings > Program Settings).
 - The MEMORY_MANAGEMENT blue screen (0x1A, 0x41202) that PCs whose RAM ran full got after 10 minutes to an hour
   of play (issue #50, mostly 16 GB with a browser open) is fixed: Windows mishandles no-access pages of a mapped
   file when it pages them out, and the emulator now keeps such pages from reads with guard pages instead
