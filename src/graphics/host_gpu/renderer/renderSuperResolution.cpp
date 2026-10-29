@@ -473,9 +473,10 @@ void RenderExecutor::RunSuperResolution(CommandBuffer& buffer, const SuperResolu
 	}
 	// The game's reactive mask (slot 6), where given: the pixels Sony's upscaler is told to take from this frame rather
 	// than from its history, the effects drawn with a pattern that changes every frame (fire, smoke, the soul form's
-	// glow). DLSS and FSR 3 take it too: without it they averaged those pixels with their history, which flickered
-	// (issue #232: the PS5 Pro path with either, not the game's own TAA). Live switch sr_reactive 0 (KYTY_SR_REACTIVE its
-	// start value; a comparison): not given.
+	// glow). DLSS takes it as its hint towards the current colour (issue #232). FSR 3 does not by default: as its reactive
+	// mask it took whole areas from this frame alone, the 1080p samples showing on a 4K output as a grid of blocks and
+	// sparkling edges (issue #244, an RTX 3080 whose FSR frame generation runs FSR 3 in DLSS's place). Live switch
+	// sr_reactive (KYTY_SR_REACTIVE its start value): 1 DLSS only, 2 FSR 3 too, 0 neither.
 	static auto& reactive_switch = LiveSwitch::Find("sr_reactive", 1);
 	const bool   reactive_wanted = reactive_switch.load(std::memory_order_relaxed) != 0;
 	TextureBinding reactive_binding;
@@ -572,7 +573,7 @@ void RenderExecutor::RunSuperResolution(CommandBuffer& buffer, const SuperResolu
 	inputs.motion         = upscale_image(bindings[1], motion, vk::ImageLayout::eShaderReadOnlyOptimal);
 	inputs.depth          = upscale_image(bindings[2], depth, depth_layout);
 	inputs.output         = upscale_image(bindings[3], output, vk::ImageLayout::eGeneral);
-	if (has_reactive && upscaler)
+	if (has_reactive && upscaler && (!fsr || reactive_switch.load(std::memory_order_relaxed) >= 2))
 		inputs.reactive = upscale_image(reactive_binding, cache.GetImage(reactive_binding.image_id),
 		                                vk::ImageLayout::eShaderReadOnlyOptimal);
 	inputs.jitter_x       = Word(packet, JitterWord);
@@ -645,8 +646,10 @@ void RenderExecutor::RunSuperResolution(CommandBuffer& buffer, const SuperResolu
 		describe("motion", motion, bindings[1]);
 		describe("depth", depth, bindings[2]);
 		describe("output", output, bindings[3]);
-		if (has_reactive) describe("reactive mask", cache.GetImage(reactive_binding.image_id), reactive_binding);
-		else std::printf("Super resolution: no reactive mask (%s)\n", reactive_wanted ? "the game gave none" : "KYTY_SR_REACTIVE=0");
+		if (has_reactive && inputs.reactive.image) describe("reactive mask", cache.GetImage(reactive_binding.image_id), reactive_binding);
+		else std::printf("Super resolution: no reactive mask (%s)\n", !reactive_wanted ? "KYTY_SR_REACTIVE=0"
+		                                                              : has_reactive  ? "FSR 3 without it: KYTY_SR_REACTIVE=2 gives it"
+		                                                                              : "the game gave none");
 	}
 	if (static std::atomic<uint32_t> reports {0}; reports.fetch_add(1, std::memory_order_relaxed) < 2) {
 		std::printf("Super resolution: %s, the game's exposure %s\n", dlss ? "DLSS" : fsr ? "FSR 3" : "stretch",
