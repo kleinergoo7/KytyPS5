@@ -719,7 +719,8 @@ bool EmitValueFlow(ValueEmitContext& ctx, const IR::Inst& inst) {
 		case IR::ValueOpcode::DppMoveU32: {
 			const auto flags    = inst.Flags<IR::DppMoveFlags>();
 			const auto target   = EmitDppTargetLane(state, flags.control);
-			if (state.stage == ShaderType::Pixel && flags.control <= 0xffu &&
+			// (A translation feature: a static store made without it keeps its pipelines, its next precompile brings it.)
+			if (state.stage == ShaderType::Pixel && flags.control <= 0xffu && state.program.pixel_quad_reads &&
 			    g_pixel_quad_operations.load(std::memory_order_relaxed)) {
 				ctx.Define(inst, EmitDppQuadPermPixel(ctx, inst, flags, target.lane));
 				return true;
