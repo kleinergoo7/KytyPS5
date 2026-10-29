@@ -542,7 +542,8 @@ partial class MainWindow : Window {
 			UpdateOutputNote();
 		};
 		// The DLSS model (KYTY_DLSS_PRESET): the DLSS version's own choice, its transformer or its CNN model.
-		var models = new[] { new Choice(T("dlssmodel.auto"), ""), new Choice(T("dlssmodel.k"), "K"), new Choice(T("dlssmodel.e"), "E") };
+		var models = new[] { new Choice(T("dlssmodel.auto"), ""), new Choice(T("dlssmodel.k"), "K"), new Choice(T("dlssmodel.m"), "M"),
+		                     new Choice(T("dlssmodel.l"), "L"), new Choice(T("dlssmodel.e"), "E") };
 		dlssModel = Combo(models, Math.Max(0, Array.FindIndex(models, c => (string)c.Value == S.Str("dlss_preset"))));
 		dlssModel.IsEnabled = Value(upscaler) as string == "dlss";
 		// The upscaler's sharpening (KYTY_DLSS_SHARPNESS, KYTY_FSR_SHARPNESS): one row for the chosen upscaler, each with a

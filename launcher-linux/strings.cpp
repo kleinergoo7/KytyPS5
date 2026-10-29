@@ -176,10 +176,13 @@ const Table& English() {
 	    {"dlssmodel.auto", "Automatic"},
 	    {"dlssmodel.k", "Transformer (preset K)"},
 	    {"dlssmodel.e", "CNN (preset E)"},
+	    {"dlssmodel.m", "Transformer 2 (preset M, DLSS 4.5)"},
+	    {"dlssmodel.l", "Transformer 2, sharpest (preset L, DLSS 4.5)"},
 	    {"dlssmodel.desc", "With DLSS: Automatic leaves the model to the DLSS version. Transformer "
 	                       "is the newer, sharper "
 	                       "model; CNN the older one, lighter on RTX 20 and 30 cards, where the "
-	                       "transformer model costs more."},
+	                       "transformer model costs more. M and L are DLSS 4.5's second transformer "
+	                       "models (L sharper, M faster), with a DLSS 4.5 runtime."},
 	    {"sharpen", "Sharpening"},
 	    {"sharpen.off", "Off"},
 	    {"sharpen.low", "Low"},
@@ -522,6 +525,8 @@ const Table& Chinese() {
 	    {"dlssmodel.auto", "自动"},
 	    {"dlssmodel.k", "Transformer（预设 K）"},
 	    {"dlssmodel.e", "CNN（预设 E）"},
+	    {"dlssmodel.m", "Transformer 2（预设 M，DLSS 4.5）"},
+	    {"dlssmodel.l", "Transformer 2，最清晰（预设 L，DLSS 4.5）"},
 	    {"dlssmodel.desc", "使用 DLSS 时生效。自动：由 DLSS "
 	                       "版本决定模型。Transformer：更新、更清晰的模型；CNN：旧模型，在 RTX 20 "
 	                       "和 30 系显卡上更轻（Transformer 模型在这些显卡上开销更大）。"},
@@ -853,6 +858,8 @@ const Table& Portuguese() {
 	    {"dlssmodel.auto", "Automático"},
 	    {"dlssmodel.k", "Transformer (preset K)"},
 	    {"dlssmodel.e", "CNN (preset E)"},
+	    {"dlssmodel.m", "Transformer 2 (preset M, DLSS 4.5)"},
+	    {"dlssmodel.l", "Transformer 2, mais nítido (preset L, DLSS 4.5)"},
 	    {"dlssmodel.desc",
 	     "Com DLSS: Automático deixa o modelo para a versão do DLSS. Transformer é o modelo mais "
 	     "novo e "
