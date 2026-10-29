@@ -1,5 +1,24 @@
 ## New in this build
 
+A hotfix of v20261029. Your precompiled shaders stay valid: the shaders are the same as in v20261029.
+
+- **Textures and lights flickering every other frame** (#242, a v20261029 regression): v20261029 decided its memory
+  savings by the RAM free for the emulator at start instead of the PC's total, and on a 24 or 32 GB PC with other
+  programs open that turned on read guards, which v20261028 never used there. When the RAM then ran full, things the
+  game reads back from the graphics card were sometimes read old: textures, lights and objects there one frame and gone
+  the next. Read guards go by the PC's total RAM again (20 GB or less); the other savings keep the new rule (#228).
+- **Frame generation turning off** (#241): looking at the Nexus floor or at a wall close up, frame generation turned
+  itself off until the view changed: its camera came only from a few of the game's shaders, which such views don't
+  draw. Those frames now keep the last camera. The log says when frame generation turns on or off and why
+  (`Frame generation: DLSS-G off: 30 frames without inputs (no camera)`). In the 120 fps mode a frame needs one draw of
+  the world instead of 64 to count as 3D, so close views are no longer held to 60.
+- **Microsoft Defender** (#240): the README in the package explains that Defender's scans of the game's files cost
+  frame time while the game streams (@DevList1454 measured the 99th percentile frame time 31.5 -> 26 ms with the folder
+  excluded), and that a `.zar` copy of the game (one file) or a folder exclusion avoids them.
+- **Thanks** to @luizhtss, @javsp, @zioaster and @DevList1454 for their reports and measurements.
+
+## New in v20261029
+
 Your precompiled shaders stay valid: the shaders are the same as in v20261028.
 
 - **Steam Deck package and guide**: releases now have a third package, `KytyPS5-steamdeck-<version>.zip`, the emulator
@@ -61,55 +80,22 @@ Your precompiled shaders stay valid: the shaders are the same as in v20261028.
   @brokeneggg, @Ayonily, @KhadaZane, @theunholy, @crni20zd, @2mg, @theraineydaze, @javsp, @Psychowarden and
   @DevList1454 for their reports and tests.
 
-## New in v20261028
-
-Your precompiled shaders stay valid: the shaders are the same as in v20261027.
-
-- **Crash at a world load on PCs short of RAM** (#228): at a teleport, an RX 9070 with 5.4 GB of its video memory free
-  could not get a new 108 MB GPU buffer while the PC's RAM was nearly full, and the emulator exited at once. It now
-  tries again for up to 10 seconds, and the log says what refused it: the driver's answer in video and in system
-  memory, and the RAM and commit left.
-- **DLSS sharpening** (#224): the game's own TAA sharpens its picture; DLSS in its place does not, so fine detail such
-  as the engravings on armour looked softer with it. The launcher's Graphics page has "DLSS sharpening": Off by
-  default, then Low, Medium and High. It runs RCAS, the sharpening FSR 3 uses, on DLSS's picture
-  (`run.cmd -Set KYTY_DLSS_SHARPNESS=0.6`, 0 to 1). At DLAA, Medium brought the fine detail on the armour from about
-  78% of the TAA's to about 91%.
-- **Sharper textures below the output's size** (#224): when DLSS or FSR 3 renders below the output's height, textures
-  are now read with the detail of the output's size (a texture LOD bias of log2(render height / output height), as
-  NVIDIA's DLSS guide recommends): about 13% more fine detail from 1080 to 4K. `-Set KYTY_UPSCALE_LOD_BIAS=0` turns
-  it off.
-- **Full textures on 16 GB cards** (#215, #224): v20261027 chose Texture reduce from the budget left after the frame
-  generation and upscaler reserve, so a 16 GB card close to its budget could get half-resolution textures as soon as
-  DLSS or frame generation was on. It now goes by the card's own video memory: 12 GB or less reduces, more keeps full
-  textures.
-- **Version 1.005: 1080p output and DLSS** (#226): with Demon's Souls 1.005 (European and US editions), "Game output:
-  1080p", DLSS's 1080p output and DLSS's render heights now work as with 1.07.
-- **DLSS slowing down over time** (#129): with DLSS (without DLSS frame generation) every rendered frame now reaches
-  the present of NVIDIA's Streamline, as it requires. Frames replaced by newer ones before they were shown made its
-  present calls grow on an RTX 2080 Ti until only 4-10 frames a second were shown. `-Set KYTY_PRESENT_EVERY_FRAME=0`
-  goes back to the old way.
-- **Grainy Nexus runes on Linux** (#222): v20261027's readbacks of neighbouring buffers (PR #219) are off by default
-  again: on Linux they made the floor runes around the player in the Nexus grainy. `-Set KYTY_READBACK_SPAN=1` turns
-  them back on.
-- **Fewer slow frames near the video memory budget** (#215): a game buffer of 64 MB or more that keeps growing is now
-  made with an eighth more room, so it is made again whole about half as often (one went from 638 to 910 MB in five
-  steps in a session, each a frame of 100-135 ms). The texture collector also counts its ages in seconds at any vblank
-  rate (at 240 Hz they were four times as long).
-- **DLSS frame generation on Linux** (#215): when NGX could not make DLSS frame generation (video memory full), it is
-  tried again later instead of staying off for the session, and short drops of the render size (menus) no longer
-  make it again. Not tested on our side (no Linux PC with an NVIDIA card).
-- **Mouse wheel** (#91): `Mouse:WheelUp` and `Mouse:WheelDown` can be mapped to controls
-  (`"--keymap", "Up=Mouse:WheelUp"`), each notch a short press; a control takes one key and one mouse input.
-- **Back to Big Picture** (#217): when the window that had the focus at the start is gone (Big Picture makes its window
-  again), the focus goes to Steam's largest window instead.
-- **Precompile** (#225): on a FAT32 drive (at most 4 GB a file; the store is about 5.5 GB) the precompile now stops
-  before it starts and says so, less than 12 GB free gets a warning, a store that antivirus or the indexer holds for a
-  moment is put in place again for up to 5 s, and a failed merge says why.
-- **Linux launcher** (#90): extra options given more than once (`--keymap`) are all passed on.
-- **Thanks** to @AudaxTenebra, @HybOj, @theunholy, @Zaza26262, @2mg, @Psychowarden, @theraineydaze, @javsp,
-  @ededaelita1-afk and @arhaaaaaaaa-ux for their reports and tests.
-
 ## 本版本的变化
+
+v20261029 的修正版。已有的预编译着色器继续有效：着色器与 v20261029 相同。
+
+- **纹理和光照隔帧闪烁**（#242，v20261029 引入的问题）：v20261029 改为按启动时模拟器可用的内存（而不是电脑的总内存）决定省内存措施，
+  在开着其他程序的 24 或 32 GB 电脑上因此开启了"读保护"（v20261028 在这些电脑上从不使用）。内存用满时，游戏从显卡读回的数据有时会
+  读到旧的：纹理、光照和物体这一帧在、下一帧没了。读保护重新按电脑的总内存决定（20 GB 及以下）；其他省内存措施仍按新规则（#228）。
+- **插帧自己关闭**（#241）：看着要石神殿的地面或贴近墙壁时，插帧会自己关闭，直到视角改变：它的相机信息只来自游戏的少数几个着色器，
+  这类视角里没有绘制它们。这些帧现在沿用上一次的相机。日志会写出插帧何时开启、关闭以及原因
+  （`Frame generation: DLSS-G off: 30 frames without inputs (no camera)`）。120 帧模式下，一帧只要有一次世界的绘制就算 3D 画面
+  （原为 64 次），贴近的视角不再被限制在 60 帧。
+- **Microsoft Defender**（#240）：包内的 README 说明了 Defender 扫描游戏文件会在游戏读取资源时占用帧时间（@DevList1454 测得排除
+  游戏文件夹后，99% 帧时间从 31.5 ms 降到 26 ms），使用 `.zar` 格式的游戏（一个文件）或把游戏文件夹加入排除项可以避免。
+- **感谢** @luizhtss、@javsp、@zioaster 和 @DevList1454 的反馈与测量。
+
+## v20261029 的变化
 
 已有的预编译着色器继续有效：着色器与 v20261028 相同。
 
@@ -160,40 +146,3 @@ Your precompiled shaders stay valid: the shaders are the same as in v20261027.
 - **移除 F9**：调试快照（会暂停游戏）已移除；F9 可以用于按键映射。
 - **感谢** @kleinergoo7 的 PR #235 和 @intellq 的 PR #237，以及 @nzc20090108、@forensicssix-debug、@brokeneggg、@Ayonily、
   @KhadaZane、@theunholy、@crni20zd、@2mg、@theraineydaze、@javsp、@Psychowarden 和 @DevList1454 的反馈与测试。
-
-## v20261028 的变化
-
-已有的预编译着色器继续有效：着色器与 v20261027 相同。
-
-- **内存不足的电脑在载入世界时崩溃**（#228）：一张 RX 9070 在传送时显存还剩 5.4 GB，但电脑内存几乎用尽，新的 108 MB
-  显卡缓冲区创建失败，模拟器随即退出。现在会在最多 10 秒内反复重试，日志也会写出是什么拒绝了分配：驱动在显存和系统内存中的
-  回应，以及剩余的内存和可提交内存。
-- **DLSS 锐化**（#224）：游戏自带的 TAA 会锐化画面；DLSS 取代 TAA 后不会，所以铠甲花纹之类的细节看起来偏软。启动器「画质」
-  页新增「DLSS 锐化」：默认关闭，可选低、中、高。它对 DLSS 的画面运行 RCAS（FSR 3 使用的锐化）
-  （`run.cmd -Set KYTY_DLSS_SHARPNESS=0.6`，0 到 1）。在 DLAA 下，「中」让铠甲上的细节从 TAA 的约 78% 提高到约 91%。
-- **低于输出分辨率时纹理更清晰**（#224）：DLSS 或 FSR 3 的渲染高度低于输出高度时，纹理现在按输出尺寸的精细度读取（纹理 LOD
-  偏移 log2(渲染高度 / 输出高度)，即 NVIDIA DLSS 指南推荐的值）：从 1080 到 4K，细节多约 13%。
-  `-Set KYTY_UPSCALE_LOD_BIAS=0` 可以关闭。
-- **16 GB 显卡保持完整纹理**（#215、#224）：v20261027 按扣除插帧和超分预留之后的显存预算决定是否缩减纹理，接近预算的
-  16 GB 显卡一开 DLSS 或插帧，纹理就可能只剩一半分辨率。现在按显卡本身的显存决定：12 GB 及以下缩减，更大的保持完整纹理。
-- **1.005 版本的 1080p 输出和 DLSS**（#226）：《恶魔之魂》1.005（欧版和美版）现在也能使用「游戏输出：1080p」、DLSS 的
-  1080p 输出和 DLSS 的渲染高度，与 1.07 相同。
-- **DLSS 越玩越慢**（#129）：使用 DLSS（不开 DLSS 插帧）时，现在每一帧渲染结果都会送到 NVIDIA Streamline 的呈现，这是它
-  的要求。以前等待显示的帧会被更新的帧替换，在一张 RTX 2080 Ti 上让每次呈现越来越慢，最后每秒只显示 4-10 帧。
-  `-Set KYTY_PRESENT_EVERY_FRAME=0` 可以恢复旧方式。
-- **Linux 上要石神殿的地面符文出现颗粒**（#222）：v20261027 的相邻缓冲区一并读回（PR #219）重新默认关闭：在 Linux 上它让
-  要石神殿里玩家周围的地面符文出现颗粒。`-Set KYTY_READBACK_SPAN=1` 可以重新打开。
-- **接近显存预算时卡顿帧更少**（#215）：64 MB 以上且持续增长的游戏缓冲区，现在会多留八分之一的空间，整体重建的次数约减半
-  （一局中曾有一个缓冲区分五步从 638 MB 长到 910 MB，每一步都有一帧 100-135 ms）。纹理回收在任何刷新率设置下也都按秒计时
-  （240 Hz 时原来要长四倍）。
-- **Linux 的 DLSS 插帧**（#215）：NGX 无法创建 DLSS 插帧（显存已满）时，稍后会再试，而不是整局关闭；渲染尺寸短暂变小
-  （菜单）时也不再重建插帧。我们没有装 NVIDIA 显卡的 Linux 电脑，这项未经测试。
-- **鼠标滚轮**（#91）：`Mouse:WheelUp` 和 `Mouse:WheelDown` 可以映射到按键（`"--keymap", "Up=Mouse:WheelUp"`），滚轮每格
-  相当于一次短按；一个按键可以同时对应一个键盘键和一个鼠标输入。
-- **回到 Big Picture**（#217）：启动时拥有焦点的窗口已经不存在时（Big Picture 会重建自己的窗口），焦点改为交给 Steam 最大的
-  窗口。
-- **预编译**（#225）：在 FAT32 磁盘上（单个文件最大 4 GB，而存储文件约 5.5 GB）预编译现在会在开始前停止并说明原因；可用空间
-  少于 12 GB 时给出提醒；存储文件被杀毒软件或索引服务短暂占用时，最多再试 5 秒；合并失败时会写出原因。
-- **Linux 启动器**（#90）：多次给出的额外参数（`--keymap`）现在全部传给模拟器。
-- **感谢** @AudaxTenebra、@HybOj、@theunholy、@Zaza26262、@2mg、@Psychowarden、@theraineydaze、@javsp、@ededaelita1-afk
-  和 @arhaaaaaaaa-ux 的反馈与测试。
