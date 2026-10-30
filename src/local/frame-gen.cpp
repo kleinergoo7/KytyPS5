@@ -121,6 +121,9 @@ std::atomic<bool> g_scene {false}; // the current guest frame ran the TAA pass
 std::atomic<bool> g_last_scene {false}; // ... the last one the guest flipped
 std::atomic<uint64_t> g_flips_taken {0}; // TakeScene calls (guest flips)
 std::atomic<uint64_t> g_drawn_at_flip {0}; // the guest's indexed draw packets when TakeScene last ran
+std::atomic<bool> g_menu {false}; // the current guest frame drew a menu (NoteMenu)
+std::atomic<int> g_menu_hold {0}; // flips still to go in the middle after the last that drew a menu (TakeMenu)
+std::atomic<bool> g_centred {false}; // the current guest frame's interface went to the middle (NoteCentred)
 // Why the last frame had no inputs (PrepareInputs; the on/off lines' reason): 0 it had them, 1 no TAA pass, 2 no camera,
 // 3 the TAA's images replaced since.
 std::atomic<uint32_t> g_inputs_missing {0};
@@ -1985,6 +1988,28 @@ bool TakeScene() {
 
 uint64_t GuestFlips() {
 	return g_flips_taken.load(std::memory_order_relaxed);
+}
+
+void NoteMenu() {
+	g_menu.store(true, std::memory_order_relaxed);
+}
+
+void NoteCentred() {
+	g_centred.store(true, std::memory_order_relaxed);
+}
+
+bool TakeMenu() {
+	// (A closed menu fades out over a few more frames without the draws NoteMenu takes it by: 20 flips more in the
+	// middle, a third of a second, and its fade ends at 16:9 instead of widened across the screen.)
+	constexpr int HoldFlips = 20;
+	const bool    menu      = g_menu.exchange(false, std::memory_order_relaxed);
+	g_menu_hold.store(menu ? HoldFlips : std::max(0, g_menu_hold.load(std::memory_order_relaxed) - 1),
+	                  std::memory_order_relaxed);
+	return g_centred.exchange(false, std::memory_order_relaxed);
+}
+
+bool MenuNoted() {
+	return g_menu.load(std::memory_order_relaxed) || g_menu_hold.load(std::memory_order_relaxed) > 0;
 }
 
 bool SceneNoted() {
