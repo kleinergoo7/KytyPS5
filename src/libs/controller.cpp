@@ -944,7 +944,11 @@ int KYTY_SYSV_ABI PadRead(int handle, PadData* data, int num) {
 // default: an Xbox pad's motors at the DualSense's reference 2 were too strong even at 1, issue #236; 0 leaves the
 // motors alone). KYTY_PAD_RUMBLE_ONSET=<0..1>: the level a block
 // needs to drive them (0.025, as the DualSense's: a quiet effect the game keeps playing, an enchanted weapon's hum at
-// 0.005-0.01, rumbled the whole buff long, issue #239; hits reach 0.25).
+// 0.005-0.01, rumbled the whole buff long, issue #239; hits reach 0.25). KYTY_PAD_RUMBLE_SUSTAIN_MS=<0..5000>: a channel's
+// level less its average over that time (500 by default; 0: off): a hit drives the motors whole, an effect that goes on
+// fades in about as long (the title screen's, Continue's and each spawn's long effects, made for the DualSense's
+// actuators, rumbled an Xbox pad all along, issue #236: the bench start's two, 3.8 and 3.0 s over the onset, one of them
+// 1.8 s at 0.56, drive the motors ~2.0 and ~1.3 s, fading). KYTY_PAD_RUMBLE_TRACE=1: each step's levels in the log.
 void RumbleFromVibrationAudio(const void* data, uint32_t frames, uint32_t channels, bool is_float, const float* gains) {
 	static const float gain = [] {
 		const char* value = std::getenv("KYTY_PAD_RUMBLE_GAIN");
@@ -959,13 +963,23 @@ void RumbleFromVibrationAudio(const void* data, uint32_t frames, uint32_t channe
 		const char* value = std::getenv("KYTY_PAD_RUMBLE_ONSET");
 		return value != nullptr && *value != 0 ? std::clamp(std::strtof(value, nullptr), 0.0f, 1.0f) : 0.025f;
 	}();
+	constexpr float    DECAY = 0.6f, FLOOR = 0.01f;
+	constexpr uint32_t STEP  = 1024;
+	// (The average's weight a step: 1024 frames at 48 kHz, 21.3 ms.)
+	static const float sustain = [] {
+		const char* value = std::getenv("KYTY_PAD_RUMBLE_SUSTAIN_MS");
+		const float ms    = value != nullptr && *value != 0 ? std::clamp(std::strtof(value, nullptr), 0.0f, 5000.0f) : 500.0f;
+		return ms > 0.0f ? 1.0f - std::exp(-static_cast<float>(STEP) / 48.0f / ms) : 0.0f;
+	}();
+	static const bool trace = [] {
+		const char* value = std::getenv("KYTY_PAD_RUMBLE_TRACE");
+		return value != nullptr && std::string_view(value) == "1";
+	}();
 	if (gain == 0.0f || data == nullptr || frames == 0 || channels == 0 || g_controller == nullptr) {
 		return;
 	}
-	constexpr float    DECAY = 0.6f, FLOOR = 0.01f;
-	constexpr uint32_t STEP  = 1024;
 	static std::mutex  mutex;
-	static float       peak[2] {}, held[2] {};
+	static float       peak[2] {}, held[2] {}, average[2] {};
 	static uint32_t    pending = 0;
 	std::lock_guard    lock(mutex);
 	for (uint32_t i = 0; i < frames; i++) {
@@ -985,10 +999,22 @@ void RumbleFromVibrationAudio(const void* data, uint32_t frames, uint32_t channe
 	}
 	pending = 0;
 	const bool was_live = held[0] != 0.0f || held[1] != 0.0f;
+	float      level[2] {};
 	for (int m = 0; m < 2; m++) {
-		held[m] = std::max(peak[m] >= onset ? peak[m] : 0.0f, held[m] * DECAY);
-		peak[m] = 0.0f;
+		level[m] = peak[m];
+		if (sustain > 0.0f) {
+			average[m] += (peak[m] - average[m]) * sustain;
+			level[m] = std::max(0.0f, peak[m] - average[m]);
+		}
+		held[m] = std::max(level[m] >= onset ? level[m] : 0.0f, held[m] * DECAY);
 	}
+	if (trace && (peak[0] != 0.0f || peak[1] != 0.0f || was_live)) {
+		std::printf("Pad rumble trace: %llu ms, peaks %.3f %.3f, levels %.3f %.3f, held %.3f %.3f\n",
+		            static_cast<unsigned long long>(SDL_GetTicks64()), static_cast<double>(peak[0]),
+		            static_cast<double>(peak[1]), static_cast<double>(level[0]), static_cast<double>(level[1]),
+		            static_cast<double>(held[0]), static_cast<double>(held[1]));
+	}
+	peak[0] = peak[1] = 0.0f;
 	if (held[0] < FLOOR && held[1] < FLOOR) {
 		held[0] = held[1] = 0.0f;
 		// (Stopped explicitly once: a hit that ends must not leave the motors at its last level.)
