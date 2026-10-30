@@ -241,12 +241,14 @@ inline bool  OutputTarget(const HW::Context& ctx);
 
 // KYTY_FRAMEGEN_BACKEND=fsr: an interface draw names the canvas (its render target) whose alpha marks the HUD for FSR
 // (FrameGen::NoteUiCanvas). With the interface scaled to KYTY_OUTPUT_HEIGHT's output the canvas is the output's size
-// (OutputTarget): at 1440 FSR found none and generated the HUD too, which flickered (issue #170).
+// (OutputTarget): at 1440 FSR found none and generated the HUD too, which flickered (issue #170). With the wide output
+// the HUD's canvas is as wide as it (WideWidth; issue #250, the same ghosting at 32:9).
 inline void NoteCanvas(const HW::Context& ctx, const HW::VertexShaderInfo& vs) {
-	const auto& target = ctx.GetRenderTarget(0);
-	const bool  canvas = OutputScale() > 0.0f ? OutputTarget(ctx)
-	                                          : target.attrib2.width + 1u == CanvasWidth() &&
-	                                               target.attrib2.height + 1u == CanvasHeight();
+	const auto&    target = ctx.GetRenderTarget(0);
+	const uint32_t width  = WideWidth() != 0 ? WideWidth() : CanvasWidth();
+	const bool     canvas = OutputScale() > 0.0f ? OutputTarget(ctx)
+	                                             : target.attrib2.width + 1u == width &&
+	                                                  target.attrib2.height + 1u == CanvasHeight();
 	if (target.base.addr == 0 || !canvas) return;
 	const uint64_t hash = HashAt(vs.es_regs.data_addr);
 	if (hash == PixelShader || std::find(ClipShaders.begin(), ClipShaders.end(), hash) != ClipShaders.end())
