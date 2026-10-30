@@ -365,7 +365,7 @@ SDL_AudioFormat Audio::SdlFormat(Format format) {
 // refused: playing the game's audio on the wrong device is worse than not playing it (the
 // mainline's DualSenseHaptics refuses ambiguous USB or Bluetooth endpoints for the same reason).
 // Diagnostic for now: it only says which device would be used (see the AUDIO-DEVICE lines).
-static std::string FindControllerAudioDevice() {
+std::string FindControllerAudioDevice() {
 	if (SDL_WasInit(SDL_INIT_AUDIO) == 0) {
 		return {};
 	}
@@ -418,9 +418,7 @@ static void LogAudioDevicesOnce() {
 	}
 }
 
-bool Audio::OpenSdlDevice(PortOut* port) {
-	EXIT_IF(port == nullptr);
-
+bool EnsureSdlAudio() {
 #if defined(KYTY_STEAM_DECK)
 	// The Steam Deck build: SDL's ALSA backend (PipeWire's ALSA plugin plays it), PulseAudio's if ALSA fails, unless
 	// SDL_AUDIODRIVER names others. Each of the game's 8 ports is a device of its own, waking every 5.3 ms grain: through
@@ -430,6 +428,15 @@ bool Audio::OpenSdlDevice(PortOut* port) {
 #endif
 	if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
 		LOGF("AudioOut: SDL audio init failed: %s\n", SDL_GetError());
+		return false;
+	}
+	return true;
+}
+
+bool Audio::OpenSdlDevice(PortOut* port) {
+	EXIT_IF(port == nullptr);
+
+	if (!EnsureSdlAudio()) {
 		return false;
 	}
 
@@ -667,9 +674,11 @@ bool Audio::QueueSdlAudio(PortOut* port, const void* data, const float* gains, b
 			report_pad_samples(false);
 			std::vector<uint8_t> prepared_buffer;
 			const void*          prepared_data = PrepareOutputBuffer(*port, data, &prepared_buffer);
-			return Controller::DualSenseHaptics::Write(prepared_data, port->samples_num, port->freq,
-			                                           PreparedChannels(*port),
-			                                           FormatIsFloat(port->format), false, gains);
+			if (Controller::DualSenseHaptics::Write(prepared_data, port->samples_num, port->freq, PreparedChannels(*port),
+			                                        FormatIsFloat(port->format), false, gains))
+				return true;
+			// (The route is there but refused the write, a stereo-profile pad or a route not
+			// open yet: the pad's rumble motors below instead, as without the route.)
 		}
 		// No DualSense haptics endpoint: the pad's rumble motors instead (an Xbox controller, a Steam Deck's; issue #236).
 		if (port->type == AUDIO_OUT_PORT_TYPE_VIBRATION) {
