@@ -674,11 +674,11 @@ bool Audio::QueueSdlAudio(PortOut* port, const void* data, const float* gains, b
 			report_pad_samples(false);
 			std::vector<uint8_t> prepared_buffer;
 			const void*          prepared_data = PrepareOutputBuffer(*port, data, &prepared_buffer);
-			if (Controller::DualSenseHaptics::Write(prepared_data, port->samples_num, port->freq, PreparedChannels(*port),
-			                                        FormatIsFloat(port->format), false, gains))
-				return true;
-			// (The route is there but refused the write, a stereo-profile pad or a route not
-			// open yet: the pad's rumble motors below instead, as without the route.)
+			// (A write the open route refuses is a block it had no room for: dropped, not rumbled. The motors below would
+			// drive a USB DualSense's too on Windows, whose WASAPI route drops a block when its buffer is behind. A
+			// stereo-profile pad or a route not open yet is not Available: the motors below take it.)
+			return Controller::DualSenseHaptics::Write(prepared_data, port->samples_num, port->freq, PreparedChannels(*port),
+			                                           FormatIsFloat(port->format), false, gains);
 		}
 		// No DualSense haptics endpoint: the pad's rumble motors instead (an Xbox controller, a Steam Deck's; issue #236).
 		if (port->type == AUDIO_OUT_PORT_TYPE_VIBRATION) {
