@@ -1570,16 +1570,23 @@ void Swapchain::RecordPresentCommands(CommandBuffer& command, VulkanImage& sourc
 	// With the wide output (DemonsSoulsRenderSize::WideOutputWidth) the game's frames are as wide as the 3D; one without
 	// it (movies, menus, loading screens) holds its 16:9 picture at the left: that part is shown, stretched or fitted. A
 	// menu over the 3D view with KYTY_PRESENT_ASPECT=fit (`menu`: hud-anchor put it at 16:9 in the middle) shows that
-	// middle part alone, between black bars (issue #250).
+	// middle part alone at 16:9, between black bars (issue #250): the wide output's 16:9 part, or with the 3D squeezed
+	// into the game's own 16:9 output the middle 16:9-over-the-aspect of it, widened back (the menu squeezed as much).
 	int          dst_x = 0, dst_y = 0;
 	int          dst_w = static_cast<int>(m_extent.width), dst_h = static_cast<int>(m_extent.height);
 	uint32_t     src_x = 0, src_w = source.extent.width;
+	const double wide        = Loader::DemonsSoulsRenderSize::WideAspect();
 	const bool   wide_output = Loader::DemonsSoulsRenderSize::WideOutputWidth() != 0 && source.extent.height != 0;
-	const bool   middle      = menu && aspect_fit && wide_output;
-	if ((!scene || middle) && wide_output) src_w = std::min(src_w, (source.extent.height * 16u + 8u) / 9u);
+	const bool   middle      = menu && aspect_fit && wide > 0.0 && source.extent.height != 0;
+	if ((!scene || middle) && wide_output) {
+		src_w = std::min(src_w, (source.extent.height * 16u + 8u) / 9u);
+	} else if (middle) {
+		src_w = std::clamp(static_cast<uint32_t>(std::lround(src_w * (16.0 / 9.0) / wide)), 1u, src_w);
+	}
 	if (middle) src_x = (source.extent.width - src_w) / 2;
-	const double frame_aspect = source.extent.height != 0 ? static_cast<double>(src_w) / source.extent.height : 0.0;
-	const double wide         = Loader::DemonsSoulsRenderSize::WideAspect();
+	const double frame_aspect = middle                     ? 16.0 / 9.0
+	                           : source.extent.height != 0 ? static_cast<double>(src_w) / source.extent.height
+	                                                       : 0.0;
 	double       aspect       = wide > 0.0 && ((scene && !middle) || !aspect_fit) ? wide : aspect_fit ? frame_aspect : 0.0;
 	if (const double window = static_cast<double>(m_extent.width) / std::max(1u, m_extent.height);
 	    wide > 0.0 && std::fabs(aspect / window - 1.0) < 0.02) {

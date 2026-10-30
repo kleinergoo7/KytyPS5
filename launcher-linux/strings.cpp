@@ -108,8 +108,7 @@ const Table& English() {
 	    {"widebars", "Movies and menus at 16:9 (black bars)"},
 	    {"widebars.desc", "With 21:9 or 32:9: the intro, the movies, the title screen, the loading screens and "
 	                      "the menus at 16:9 with black bars at the sides, not stretched (off: stretched to the "
-	                      "width). The menus opened in play need DLSS or FSR 3 upscaling for it; with the "
-	                      "game's TAA they stay stretched."},
+	                      "width)."},
 	    {"fullscreen", "Fullscreen"},
 	    {"aspect", "Keep the aspect ratio (black bars)"},
 	    {"aspect.desc", "In fullscreen on a screen of another shape."},
@@ -476,8 +475,7 @@ const Table& Chinese() {
 	    {"ratio.169", "16:9（PS5）"},
 	    {"widebars", "过场动画与菜单保持 16:9（黑边）"},
 	    {"widebars.desc", "选 21:9 或 32:9 时：片头、过场动画、标题画面、加载画面与菜单保持 16:9，两侧为黑边，"
-	                      "不拉伸（关闭时拉伸到整个宽度）。游戏中打开的菜单需使用 DLSS 或 FSR 3 超分；用游戏自带"
-	                      "的 TAA 时仍会拉伸。"},
+	                      "不拉伸（关闭时拉伸到整个宽度）。"},
 	    {"fullscreen", "全屏"},
 	    {"aspect", "保持画面比例（黑边）"},
 	    {"aspect.desc", "全屏且屏幕比例不同时生效。"},
@@ -799,8 +797,7 @@ const Table& Portuguese() {
 	    {"widebars", "Vídeos e menus em 16:9 (barras pretas)"},
 	    {"widebars.desc", "Com 21:9 ou 32:9: a abertura, os vídeos, a tela de título, as telas de carregamento "
 	                      "e os menus em 16:9 com barras pretas nos lados, sem esticar (desligado: esticados na "
-	                      "largura). Os menus abertos durante o jogo precisam do upscaling DLSS ou FSR 3; com o "
-	                      "TAA do jogo continuam esticados."},
+	                      "largura)."},
 	    {"fullscreen", "Tela cheia"},
 	    {"aspect", "Manter a proporção (barras pretas)"},
 	    {"aspect.desc", "Em tela cheia numa tela de outro formato."},

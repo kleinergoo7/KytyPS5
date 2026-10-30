@@ -125,8 +125,7 @@ less sharp. The interface keeps the game output's size either way.
 play the HUD keeps its shape: health, magic, stamina and the equipment at the left edge, the souls at
 the right edge, the boss's health in the middle. The intro, the movies, the title screen, the loading screens
 and the in-game menus are stretched to the width, unless "Movies and menus at 16:9 (black bars)" keeps them at
-16:9 between black bars (the in-game menus with DLSS or FSR 3 upscaling only); the lock-on and enemy health bars
-stay on their targets. The
+16:9 between black bars; the lock-on and enemy health bars stay on their targets. The
 "Resolution" list follows the aspect ratio (2560x1080, 3440x1440, 3840x1600, 5120x2160 at 21:9), and
 "Render height" offers the heights whose 3D the game's render target memory holds (it was made for its own
 3840x2160): up to 1800 at 21:9 (4264x1800), 1512 at 32:9 (5376x1512). Larger ones drew the 3D red or broken, and

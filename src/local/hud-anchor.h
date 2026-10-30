@@ -114,14 +114,16 @@ inline uint32_t WideWidth() {
 	return ::Loader::DemonsSoulsRenderSize::WideOutputWidth();
 }
 
-// KYTY_PRESENT_ASPECT=fit with the wide output: the game's menus at 16:9 in the middle of it (StretchScope), which the
-// presenter shows between black bars (FrameGen::TakeMenu), not widened across it like the rest of its interface.
+// KYTY_PRESENT_ASPECT=fit with a wider aspect (KYTY_RENDER_ASPECT): the game's menus at 16:9 in the middle of the
+// picture (StretchScope), which the presenter shows between black bars (FrameGen::TakeMenu), not widened across it
+// like the rest of the interface: the wide output's 16:9 part there, or where the 3D is squeezed into the game's own
+// 16:9 output (its TAA) the middle part the presenter widens back to 16:9, the menu squeezed into it as much.
 inline bool MenuBars() {
 	static const bool fit = [] {
 		const char* value = std::getenv("KYTY_PRESENT_ASPECT");
 		return value != nullptr && std::string_view(value) == "fit";
 	}();
-	return fit && WideWidth() != 0;
+	return fit && ::Loader::DemonsSoulsRenderSize::WideAspect() > 0.0;
 }
 
 // The current frame's interface goes to the middle: MenuBars, and this frame or the last drew a menu (NoteMenuDraw).
@@ -303,8 +305,9 @@ inline uint32_t Classify(const HW::Context& ctx, const HW::VertexShaderInfo& vs,
 	const uint64_t hash  = HashAt(vs.es_regs.data_addr);
 	const bool     clip  = std::find(ClipShaders.begin(), ClipShaders.end(), hash) != ClipShaders.end();
 	if (!clip && hash != PixelShader) return 0;
-	// (An interface shader's target: the canvas the wide output's other draws into it are widened in, StretchScope.)
-	if (width != CanvasWidth()) state.canvas = target.base.addr;
+	// (An interface shader's target: the canvas the wide output's other draws into it are widened in, StretchScope; with
+	// the 3D squeezed into the game's own 16:9 output, its canvas, where a menu shown is squeezed into the middle.)
+	if (width != CanvasWidth() || WideWidth() == 0) state.canvas = target.base.addr;
 	if (!HudFrame()) return 0;
 	const auto& viewport = ctx.GetScreenViewport().viewports[0];
 	const auto& user   = vs.gs_user_sgpr;
@@ -619,16 +622,23 @@ private:
 };
 
 // A draw into the wide output's interface canvas in a frame showing the 3D: widened (StretchScope) unless it is the HUD's.
+// Where the 3D is squeezed into the game's own 16:9 output, a draw into its canvas while a menu is shown in the middle.
 inline bool Stretched(const HW::Context& ctx) {
-	if (g_state.canvas == 0 || !FrameGen::SceneNoted() || CanvasWidthOf(ctx) <= CanvasWidth()) return false;
+	if (g_state.canvas == 0 || !FrameGen::SceneNoted()) return false;
+	if (CanvasWidthOf(ctx) <= CanvasWidth() && (WideWidth() != 0 || !MenuCentred())) return false;
 	return ctx.GetRenderTarget(0).base.addr == g_state.canvas;
 }
 
 // StretchScope's x' = k x + shift of the 3840 wide layout: widened from its left edge across the canvas, or, a menu shown
-// with MenuBars (MenuCentred), at its own size in the middle (issue #250: the menus at 16:9 between black bars).
+// with MenuBars (MenuCentred), at its own size in the middle (issue #250: the menus at 16:9 between black bars). With
+// the 3D squeezed into the game's own 16:9 output, which the presenter widens: the menu squeezed about the middle as
+// much (16:9 over the aspect), the part the presenter shows widened back to 16:9.
 inline std::pair<float, float> StretchTransform() {
 	const float wide = static_cast<float>(WideWidth()), layout = static_cast<float>(CanvasWidth());
-	return MenuCentred() ? std::make_pair(1.0f, (wide - layout) / 2.0f) : std::make_pair(wide / layout, 0.0f);
+	if (!MenuCentred()) return {wide / layout, 0.0f};
+	if (wide != 0.0f) return {1.0f, (wide - layout) / 2.0f};
+	const auto squeeze = static_cast<float>((16.0 / 9.0) / ::Loader::DemonsSoulsRenderSize::WideAspect());
+	return {squeeze, layout * (1.0f - squeeze) / 2.0f};
 }
 
 // A rectangle of the 3840 wide layout where StretchScope's widening puts it.
@@ -645,7 +655,7 @@ inline Rect Widened(const Rect& rect) {
 class StretchScope {
 public:
 	StretchScope(HW::Context& ctx, const HW::PixelShaderInfo& ps): m_ctx(&ctx), m_screen(ctx.GetScreenViewport()) {
-		const auto width      = static_cast<int>(WideWidth());
+		const auto width      = static_cast<int>(std::max(WideWidth(), CanvasWidth()));
 		const auto [k, shift] = StretchTransform();
 		const auto& viewport  = m_screen.viewports[0];
 		const auto  widen     = [&](int x) { return std::clamp(static_cast<int>(std::lround(x * k + shift)), 0, width); };
