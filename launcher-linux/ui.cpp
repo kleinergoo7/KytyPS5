@@ -901,6 +901,10 @@ void LauncherWindow::DisplayPage() {
 		    }
 	    },
 	    T("ratio.desc"));
+	// (With 21:9 or 32:9 only: the movies and menus at 16:9 between black bars, commands.cpp.)
+	Row(
+	    "widebars", [&] { SettingSwitch("##widebars", "wide_bars", S().Str("ratio") != "16:9"); },
+	    T("widebars.desc"));
 	Row("fullscreen", [&] { SettingSwitch("##fullscreen", "fullscreen"); });
 	Row(
 	    "aspect", [&] { SettingSwitch("##aspect", "aspect", S().Bool("fullscreen")); },
@@ -1546,6 +1550,7 @@ std::string LauncherWindow::Summary(std::vector<std::pair<std::string, std::stri
 		options.emplace_back(T("summary.fps120"));
 	if (S().Bool("lowlatency")) options.emplace_back(T("lowlatency"));
 	if (S().Bool("hdr")) options.emplace_back(T("summary.hdr"));
+	if (S().Bool("wide_bars") && S().Str("ratio") != "16:9") options.emplace_back(T("summary.wideBars"));
 	if (hd) options.emplace_back(T("summary.hd"));
 	if (output1440) options.emplace_back(T("summary.1440"));
 	if (S().Bool("present_direct")) options.emplace_back(T("summary.presentDirect"));

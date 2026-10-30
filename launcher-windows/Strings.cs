@@ -74,8 +74,10 @@ static class Strings {
 
 		{"display.title", "Display"}, {"display.window", "Window"}, {"display.rate", "Frame rate"},
 		{"resolution", "Resolution"}, {"resolution.desc", "The window's size; in fullscreen the screen mode."},
-		{"ratio", "Aspect ratio"}, {"ratio.desc", "21:9 and 32:9 show more to the sides; the HUD keeps its shape, menus and movies are stretched."},
+		{"ratio", "Aspect ratio"}, {"ratio.desc", "21:9 and 32:9 show more to the sides; the HUD keeps its shape."},
 		{"ratio.169", "16:9 (PS5)"},
+		{"widebars", "Movies and menus at 16:9 (black bars)"},
+		{"widebars.desc", "With 21:9 or 32:9: the intro, the movies, the title screen and its menus and the loading screens at 16:9 with black bars at the sides, not stretched (off: stretched to the width). The menus opened in play stay stretched."},
 		{"fullscreen", "Fullscreen"},
 		{"aspect", "Keep the aspect ratio (black bars)"}, {"aspect.desc", "In fullscreen on a screen of another shape."},
 		{"hdr", "HDR"}, {"hdr.desc", "Turn on \"Use HDR\" in Windows display settings first; SDR otherwise."},
@@ -184,6 +186,7 @@ static class Strings {
 		{"antilag.notAmd", "AMD Radeon graphics cards only."},
 		{"feedback", "Feedback: issue #{0}"},
 		{"summary.presentDirect", "direct presentation"}, {"summary.vrrFlips", "VRR flips"}, {"summary.antilag", "Anti-Lag"},
+		{"summary.wideBars", "16:9 movies and menus"},
 		{"summary.keepResident", "memory kept resident"}, {"summary.fps30", "30 fps lock"},
 		{"summary.padSpeakerOff", "controller speaker off"},
 
@@ -238,8 +241,10 @@ static class Strings {
 
 		{"display.title", "画面"}, {"display.window", "窗口"}, {"display.rate", "帧率"},
 		{"resolution", "分辨率"}, {"resolution.desc", "窗口大小；全屏时为屏幕分辨率。"},
-		{"ratio", "画面比例"}, {"ratio.desc", "21:9 与 32:9 能看到两侧更多画面；HUD 保持比例，菜单与过场动画会被拉伸。"},
+		{"ratio", "画面比例"}, {"ratio.desc", "21:9 与 32:9 能看到两侧更多画面；HUD 保持比例。"},
 		{"ratio.169", "16:9（PS5）"},
+		{"widebars", "过场动画与菜单保持 16:9（黑边）"},
+		{"widebars.desc", "选 21:9 或 32:9 时：片头、过场动画、标题画面及其菜单、加载画面保持 16:9，两侧为黑边，不拉伸（关闭时拉伸到整个宽度）。游戏中打开的菜单仍会拉伸。"},
 		{"fullscreen", "全屏"},
 		{"aspect", "保持画面比例（黑边）"}, {"aspect.desc", "全屏且屏幕比例不同时生效。"},
 		{"hdr", "HDR"}, {"hdr.desc", "需先在 Windows 显示设置中打开「使用 HDR」，否则为 SDR。"},
@@ -348,6 +353,7 @@ static class Strings {
 		{"antilag.notAmd", "仅限 AMD Radeon 显卡。"},
 		{"feedback", "反馈：issue #{0}"},
 		{"summary.presentDirect", "直接呈现"}, {"summary.vrrFlips", "VRR 即时翻转"}, {"summary.antilag", "Anti-Lag"},
+		{"summary.wideBars", "过场与菜单 16:9"},
 		{"summary.keepResident", "常驻内存"}, {"summary.fps30", "锁定 30 帧"},
 		{"summary.padSpeakerOff", "手柄扬声器关闭"},
 

@@ -67,8 +67,8 @@ partial class MainWindow : Window {
 	ComboBox resolution, ratio, render, upscaler, dlssModel, sharpness, output, quality, frameGen, language, audioOutput, hud, uiLanguage, gpu;
 	// The Sharpening row's value for each upscaler ("0" to "0.9"), and the upscaler whose value it shows.
 	string dlssSharpness = "0", fsrSharpness = "0.6", sharpnessShown = "";
-	CheckBox fullscreen, aspect, hdr, fps120, vsync, lowLatency, fsr, cheats, redzone, safeGpu, ecores, presentDirect, vrrFlips, antiLag,
-		keepResident, fps30, padSpeaker, reopenLauncher;
+	CheckBox fullscreen, aspect, wideBars, hdr, fps120, vsync, lowLatency, fsr, cheats, redzone, safeGpu, ecores, presentDirect, vrrFlips,
+		antiLag, keepResident, fps30, padSpeaker, reopenLauncher;
 	TextBlock renderNote, outputNote, upscalerNote, frameGenNote, streamlineText, cheatState, bannerTitle, bannerLine, storeLine;
 	Image banner;
 	Border bannerFallback;
@@ -440,8 +440,11 @@ partial class MainWindow : Window {
 			WindowChanged();
 		};
 		UpdateResolutions(S.Str("resolution"));
+		// (With 21:9 or 32:9 only: the movies and menus at 16:9 between black bars, Commands.)
+		wideBars = Switch(S.Bool("wide_bars"), Ratio() != "16:9");
 		ratio.SelectionChanged += (s, e) => {
 			if (building) return;
+			wideBars.IsEnabled = Ratio() != "16:9";
 			UpdateResolutions(Value(resolution) as string ?? S.Str("resolution"));
 			SelectRenderHeight();
 			UpdateRenderNote();
@@ -465,6 +468,7 @@ partial class MainWindow : Window {
 			Section("display.window"),
 			Row("resolution", resolution, Desc(T("resolution.desc"))),
 			Row("ratio", ratio, Desc(T("ratio.desc"))),
+			Row("widebars", wideBars, Desc(T("widebars.desc"))),
 			Row("fullscreen", fullscreen),
 			Row("aspect", aspect, Desc(T("aspect.desc"))),
 			Row("hdr", hdr, Desc(T("hdr.desc"))),
@@ -956,6 +960,7 @@ partial class MainWindow : Window {
 		if (res != null) S.Set("resolution", res);
 		S.Set("fullscreen", fullscreen.IsChecked == true);
 		S.Set("aspect", aspect.IsChecked == true);
+		S.Set("wide_bars", wideBars.IsChecked == true);
 		S.Set("language", Math.Max(0, language.SelectedIndex));
 		S.Set("redzone", redzone.IsChecked == true);
 		S.Set("fps120", fps120.IsChecked == true);
@@ -1017,6 +1022,7 @@ partial class MainWindow : Window {
 		else if (S.Bool("fps120")) options.Add(T("summary.fps120"));
 		if (S.Bool("lowlatency")) options.Add(T("lowlatency"));
 		if (S.Bool("hdr")) options.Add(T("summary.hdr"));
+		if (S.Bool("wide_bars") && S.Str("ratio") != "16:9") options.Add(T("summary.wideBars"));
 		if (hdOutput) options.Add(T("summary.hd"));
 		if (output1440) options.Add(T("summary.1440"));
 		if (S.Bool("present_direct")) options.Add(T("summary.presentDirect"));
