@@ -117,7 +117,7 @@ public:
 
 	void Connect(int id);
 	void Disconnect(int id);
-	void Button(int id, uint32_t button, bool down);
+	void Button(int id, uint32_t button, bool down, uint32_t queued_ms = 0);
 	void Axis(int id, Axis axis, int value);
 	void RightStick(int id, int x, int y);
 	void TouchPad(int id, int finger, bool down, float x, float y);
@@ -139,6 +139,8 @@ private:
 	void AddState();
 	void CountDroppedState();
 	void ReportDroppedStates();
+	void NotePress(uint32_t queued_ms);
+	void NoteRead();
 
 	Common::Mutex    m_mutex;
 	std::vector<int> m_connected_ids;
@@ -160,6 +162,12 @@ private:
 	uint64_t         m_dropped_unreported = 0;
 	uint64_t         m_dropped_report_ms  = 0;
 	bool             m_dropped_reported   = false;
+	// Input timing (NotePress, NoteRead): the oldest press no read has taken yet (performance counter, 0: none) and its
+	// time in SDL's queue; per press since m_press_since (SDL ticks), its queue time and its time to the game's read.
+	uint64_t           m_press_pending        = 0;
+	uint32_t           m_press_pending_queued = 0;
+	uint64_t           m_press_since          = 0;
+	std::vector<float> m_press_queued_ms, m_press_read_ms;
 };
 
 static GameController* g_controller = nullptr;
@@ -431,13 +439,53 @@ void GameController::ReportDroppedStates() {
 	m_dropped_unreported = 0;
 }
 
-void GameController::Button(int id, uint32_t button, bool down) {
+// Input timing (issue #236: an attack started a second after its press, on an Xbox Elite pad over the Xbox Wireless
+// adapter): a press's time in SDL's queue before this emulator took it, and from then to the game's next read, which
+// takes it (every unread state, Demon's Souls 64 a tick: ReadStates). The game draws and shows its answer after that;
+// frame generation and the display add theirs. A press while another waits for a read is not timed. The log gets a line
+// every 30 s with presses in it. Caller holds m_mutex.
+void GameController::NotePress(uint32_t queued_ms) {
+	if (m_press_pending != 0) return;
+	m_press_pending        = SDL_GetPerformanceCounter();
+	m_press_pending_queued = queued_ms;
+}
+
+void GameController::NoteRead() {
+	if (m_press_pending == 0) return;
+	static const double ms_per_tick = 1000.0 / static_cast<double>(SDL_GetPerformanceFrequency());
+	m_press_read_ms.push_back(static_cast<float>(static_cast<double>(SDL_GetPerformanceCounter() - m_press_pending) * ms_per_tick));
+	m_press_queued_ms.push_back(static_cast<float>(m_press_pending_queued));
+	m_press_pending = 0;
+	const uint64_t now = SDL_GetTicks64();
+	if (m_press_since == 0) m_press_since = now;
+	if (now - m_press_since < 30000) return;
+	const auto median = [](std::vector<float>& values) {
+		std::nth_element(values.begin(), values.begin() + static_cast<std::ptrdiff_t>(values.size() / 2), values.end());
+		return static_cast<double>(values[values.size() / 2]);
+	};
+	// (A press during a load waits for the game's first read after it: the 1-1 bench start, one of 1.5 s.)
+	const double queued_max = *std::max_element(m_press_queued_ms.begin(), m_press_queued_ms.end());
+	const double read_max   = *std::max_element(m_press_read_ms.begin(), m_press_read_ms.end());
+	const auto   slow       = std::count_if(m_press_read_ms.begin(), m_press_read_ms.end(),
+	                                        [&](float read) { return read >= 100.0f; });
+	std::printf("Input: %zu presses in %.0f s: %.1f ms in SDL's queue (median; at most %.1f), %.1f ms more to the game's "
+	            "read (median; at most %.1f; %lld of them 100 ms or more)\n",
+	            m_press_read_ms.size(), static_cast<double>(now - m_press_since) / 1000.0, median(m_press_queued_ms),
+	            queued_max, median(m_press_read_ms), read_max, static_cast<long long>(slow));
+	std::fflush(stdout);
+	m_press_queued_ms.clear();
+	m_press_read_ms.clear();
+	m_press_since = now;
+}
+
+void GameController::Button(int id, uint32_t button, bool down, uint32_t queued_ms) {
 	Common::LockGuard lock(m_mutex);
 
 	// The keyboard shares the player-1 pad with the active gamepad.
 	if (m_active_id == id || id == HOST_INPUT_CONTROLLER_ID) {
 		m_state.time = LibKernel::KernelGetProcessTime();
 
+		if (down && (m_state.buttons & button) == 0) NotePress(queued_ms);
 		m_state.buttons = down ? m_state.buttons | button : m_state.buttons & ~button;
 
 		AddState();
@@ -689,6 +737,7 @@ void GameController::ReadState(ControllerState* state, bool* flag, int* count) {
 	*flag  = m_connected;
 	*count = m_connected_count;
 	*state = m_state;
+	NoteRead();
 }
 
 int GameController::ReadStates(ControllerState* states, int states_num, bool* flag, int* count) {
@@ -719,6 +768,7 @@ int GameController::ReadStates(ControllerState* states, int states_num, bool* fl
 			}
 		}
 	}
+	if (ret_num != 0) NoteRead();
 
 	return ret_num;
 }
@@ -731,8 +781,8 @@ void Disconnect(int id) {
 	g_controller->Disconnect(id);
 }
 
-void SetButton(int id, uint32_t button, bool down) {
-	g_controller->Button(id, button, down);
+void SetButton(int id, uint32_t button, bool down, uint32_t queued_ms) {
+	g_controller->Button(id, button, down, queued_ms);
 }
 
 void SetAxis(int id, Axis axis, int value) {
