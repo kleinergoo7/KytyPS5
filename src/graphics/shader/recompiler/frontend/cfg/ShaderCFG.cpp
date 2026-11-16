@@ -1301,11 +1301,11 @@ bool IsInnermostLoopControlConditional(const Graph& graph, const BasicBlock& blo
 		};
 		return is_repeat_target(true_target) && is_repeat_target(false_target);
 	}
-	const bool true_in_body  = ContainsSorted(loop->body_blocks, true_target);
-	const bool false_in_body = ContainsSorted(loop->body_blocks, false_target);
-	if (true_in_body != false_in_body) {
-		return true;
-	}
+	// Tightened: a conditional is the innermost loop's own control flow only when one
+	// arm directly targets the loop's merge or continue block (see is_control_target
+	// below). The broader "one arm leaves the loop body" heuristic also swallowed
+	// selections with a break to the loop merge, leaving an unstructured
+	// OpBranchConditional. Remove it.
 	const auto is_control_target = [&](uint32_t target) {
 		return target == loop->merge || target == loop->continue_block;
 	};
