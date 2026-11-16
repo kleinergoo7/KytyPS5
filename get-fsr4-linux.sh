@@ -10,6 +10,10 @@
 #   amdvkffx64.dll                                                 AMD Adrenalin driver for Windows (26.10.1 was
 #                                                                  the one ffx-vk-linux was tested with): the FSR 4
 #                                                                  model itself comes from the driver
+# HelixSR (github.com/lonewolf0622/HelixSR) can supply the model instead: copy its
+#   helixsr-scaler/OptiScaler/custom/HLX FSR 4/ffx_vk/amd_fidelityfx_upscaler_vk.dll   (41 MB: HLX FSR 4 4.1.2)
+# as fsr4/amd_fidelityfx_upscaler_vk.dll, and no amdvkffx64.dll. It runs on older AMDs (an RX 580 works; see the
+# README); its licence is its own (free to use, not to modify).
 # Then build the emulator again (./build-linux.sh: CMake finds _Build/deps/ffx-vk-linux), and pick "FSR 4" as the
 # upscaler (launcher: Graphics page; or KYTY_UPSCALER=fsr KYTY_FSR4=1).
 #
@@ -79,6 +83,16 @@ if [ -f "$FIX" ] && git -C "$SRC" apply --check "$FIX" 2>/dev/null; then
 else
 	echo "NOTE: $(basename "$FIX") not applied (the sources already have it, or differ from the pinned commit)." >&2
 fi
+# The Windows functions HelixSR's HLX FSR 4 Vulkan provider imports and AMD's do not (files, threads, Fls, the C
+# runtime's conversion and stdio): named "amd_fidelityfx_upscaler_vk.dll" in fsr4/, it then runs through the same
+# loader. tools/local/fsr4/ffx-vk-linux-hlxsr.patch; skipped when the sources already have it.
+FIX="$ROOT/tools/local/fsr4/ffx-vk-linux-hlxsr.patch"
+if [ -f "$FIX" ] && git -C "$SRC" apply --check "$FIX" 2>/dev/null; then
+	git -C "$SRC" apply "$FIX"
+	echo "Applied $(basename "$FIX") to ffx-vk-linux"
+else
+	echo "NOTE: $(basename "$FIX") not applied (the sources already have it, or differ from the pinned commit)." >&2
+fi
 
 cmake -S "$SRC" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release
 cmake --build "$BUILD" --target ffx_vk_linux --parallel
@@ -93,11 +107,12 @@ for dll in amd_fidelityfx_loader_vk.dll amd_fidelityfx_upscaler_vk.dll amdvkffx6
 		echo "  found   $dll"
 	else
 		echo "  missing $dll"
+		[ "$dll" = amdvkffx64.dll ] && continue # (not needed with HelixSR's self-contained upscaler)
 		missing=1
 	fi
 done
 if [ "$missing" = 1 ]; then
-	echo "Copy the missing DLLs into $EMU/fsr4 (they are AMD's, not downloaded here)."
+	echo "Copy the missing DLLs into $EMU/fsr4 (they are AMD's, or HelixSR's, not downloaded here)."
 fi
 if [ ! -f "$ROOT/_Build/linux/build.ninja" ] || ! grep -q "KYTY_FSR4_LINUX" "$ROOT/_Build/linux/build.ninja" 2>/dev/null; then
 	echo "The emulator needs building again to include FSR 4: ./build-linux.sh (re-run cmake first if it was configured before: cmake -S . -B _Build/linux)."

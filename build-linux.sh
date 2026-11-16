@@ -31,6 +31,12 @@ if git -C "$ROOT" submodule status | grep -q '^-'; then
 	git -C "$ROOT" submodule update --init --recursive
 fi
 
+# ccache makes a rebuilt tree cheap (an edit rebuilds its file, a wiped build directory reuses the cache).
+CCACHE_ARGS=()
+if command -v ccache >/dev/null 2>&1; then
+	CCACHE_ARGS+=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+fi
+
 # xbyak and zydis are fetched by CMake at configure time, unless copies are under _Build/deps.
 DEPS_ARGS=()
 [ -f "$ROOT/_Build/deps/xbyak-src/CMakeLists.txt" ] && DEPS_ARGS+=(-DFETCHCONTENT_SOURCE_DIR_XBYAK="$ROOT/_Build/deps/xbyak-src")
@@ -44,7 +50,7 @@ if [ ! -f "$BUILD/build.ninja" ]; then
 		-DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -march=$MARCH" \
 		-DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -march=$MARCH -flto=thin" \
 		-DCMAKE_EXE_LINKER_FLAGS="-flto=thin" \
-		"${DEPS_ARGS[@]}" ${KYTY_CMAKE_ARGS:-}
+		"${CCACHE_ARGS[@]}" "${DEPS_ARGS[@]}" ${KYTY_CMAKE_ARGS:-}
 fi
 
 [ $# -gt 0 ] || set -- kyty_emulator kyty_launcher

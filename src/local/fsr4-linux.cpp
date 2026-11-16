@@ -234,7 +234,9 @@ struct Upscaler {
 		uint64_t fsr4 = 0;
 		for (uint64_t i = 0; i < std::min<uint64_t>(count, ids.size()); ++i) {
 			Report("FSR 4: provider %016llx %s\n", static_cast<unsigned long long>(ids[i]), names[i] != nullptr ? names[i] : "?");
-			if (names[i] != nullptr && names[i][0] == '4' && names[i][1] == '.' && fsr4 == 0) fsr4 = ids[i];
+			// AMD's name their providers "4.1.2"; HelixSR's model names itself "HLX FSR 4 (4.1.2)".
+			const bool is_fsr4 = names[i] != nullptr && ((names[i][0] == '4' && names[i][1] == '.') || std::strstr(names[i], "FSR 4") != nullptr);
+			if (is_fsr4 && fsr4 == 0) fsr4 = ids[i];
 		}
 		return fsr4;
 	}

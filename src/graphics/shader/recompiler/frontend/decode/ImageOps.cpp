@@ -233,6 +233,9 @@ Opcode DecodeMimgOpcode(uint32_t opcode, const MimgSampleInfo* sample, const Mim
 		case 0x09u: return Opcode::IMAGE_STORE_MIP;
 		case 0x0eu: return Opcode::IMAGE_GET_RESINFO;
 		case 0x60u: return Opcode::IMAGE_GET_LOD;
+		// GFX10's hardware ray traversal (RDNA2: 0xe6 is the 32-bit, 0xe7 the 64-bit node pointer).
+		case 0xe6u:
+		case 0xe7u: return Opcode::IMAGE_BVH_INTERSECT_RAY;
 		default: return Opcode::UNSUPPORTED;
 	}
 }

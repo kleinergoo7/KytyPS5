@@ -516,6 +516,9 @@ packages.
    SPIRV-Tools; the top of the script lists them).
 2. Copy into the same `fsr4` folder `amd_fidelityfx_loader_vk.dll` and `amd_fidelityfx_upscaler_vk.dll` (FSR SDK 2.4,
    `Kits/FidelityFX/signedbin`) and `amdvkffx64.dll` (from AMD's Windows Adrenalin driver, which carries the FSR 4 model).
+   Alternatively [HelixSR](https://github.com/lonewolf0622/HelixSR) supplies a self-contained model that also runs on
+   older AMD cards: copy its `helixsr-scaler/OptiScaler/custom/HLX FSR 4/ffx_vk/amd_fidelityfx_upscaler_vk.dll` (41 MB,
+   "HLX FSR 4 4.1.2") as `fsr4/amd_fidelityfx_upscaler_vk.dll` and no `amdvkffx64.dll`. Its licence is its own.
 3. Build the emulator again (`./build-linux.sh`; CMake finds `_Build/deps/ffx-vk-linux` and says "FSR 4 on Linux:
    ffx-vk-linux headers found").
 4. Choose **FSR 4** as the upscaler in the launcher, or run with `KYTY_UPSCALER=fsr KYTY_FSR4=1`.

@@ -5,6 +5,10 @@
 // ffx-vk-linux (github.com/DuIslingr/ffx-vk-linux, MIT: a small PE loader, no Wine). The DLLs are the user's: they are
 // not in this repository and not distributed with it (AMD's licence is binary-only).
 //
+// HelixSR (github.com/lonewolf0622/HelixSR) can stand in for the driver's model: its
+// "HLX FSR 4/ffx_vk/amd_fidelityfx_upscaler_vk.dll" takes its place and no amdvkffx64.dll is needed. It also runs on
+// older AMD cards (an RX 580 dispatches it); get-fsr4-linux.sh's patch adds the Windows functions it imports.
+//
 // KYTY_FSR4=1 (with KYTY_UPSCALER=fsr): FsrNative::Upscale tries FSR 4 first and falls back to FSR 3 built in
 // (fsr-native.h) when it cannot run: no libffx_vk_linux.so or DLLs, an unsupported GPU (AMD lists RX 6000 and newer for
 // FSR 4.1.2), or a failed context. Where it looks: KYTY_FSR4_DIR, else next to the emulator, else its "fsr4" folder; the

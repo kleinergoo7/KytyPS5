@@ -924,6 +924,7 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 
 	const bool mesh_extension = HasExtension(device_extensions, VK_EXT_MESH_SHADER_EXTENSION_NAME);
 	vk::PhysicalDeviceMeshShaderFeaturesEXT supported_mesh {};
+	supported_mesh.sType = vk::StructureType::ePhysicalDeviceMeshShaderFeaturesEXT;
 	supported_mesh.pNext = &supported_features13;
 	vk::PhysicalDeviceFeatures2 supported_features2 {};
 	supported_features2.sType = vk::StructureType::ePhysicalDeviceFeatures2;
@@ -1022,6 +1023,8 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 	    feedback_dynamic.attachmentFeedbackLoopDynamicState;
 	LOGF("Vulkan depth feedback support: %s\n",
 	     graphics.attachment_feedback_loop_enabled ? "true" : "false");
+	std::printf("Vulkan mesh shaders: extension=%d feature=%d\n", mesh_extension ? 1 : 0,
+	            supported_mesh.meshShader == VK_TRUE ? 1 : 0);
 	graphics.mesh_shader_enabled = mesh_extension && supported_mesh.meshShader;
 	if (graphics.mesh_shader_enabled) {
 		vk::PhysicalDeviceProperties2 properties {};
@@ -1171,6 +1174,7 @@ static vk::Device VulkanCreateDevice(vk::PhysicalDevice physical_device, const V
 
 	vk::DeviceCreateInfo create_info {};
 	vk::PhysicalDeviceMeshShaderFeaturesEXT mesh_features {};
+	mesh_features.sType                 = vk::StructureType::ePhysicalDeviceMeshShaderFeaturesEXT;
 	mesh_features.pNext                 = &features13;
 	mesh_features.meshShader            = graphics.mesh_shader_enabled;
 	create_info.sType                   = vk::StructureType::eDeviceCreateInfo;

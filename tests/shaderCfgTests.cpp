@@ -27,6 +27,7 @@
 #include "graphics/shader/recompiler/ir/passes/ResourceTracking.h"
 #include "graphics/shader/recompiler/ir/passes/ShaderInfoCollection.h"
 #include "graphics/shader/recompiler/ir/passes/SrtWalker.h"
+#include "graphics/shader/recompiler/ir/passes/DynamicBuffer.h"
 #include "graphics/shader/recompiler/ir/passes/SsaRewrite.h"
 #include "graphics/shader/shader.h"
 #include "graphics/shader/shaderCompiler.h"
@@ -13030,6 +13031,59 @@ void TestShaderWarmupCacheFiles() {
 }
 #endif
 
+// GFX10's hardware ray traversal (MIMG 0xe6/0xe7) has no emulation: every ray misses at the
+// distance the shader asked for, so shaders using it still compile and a traversal loop ends.
+void TestNewShaderRecompilerImageBvhIntersectRayMisses() {
+  using namespace ShaderRecompiler;
+
+  const uint32_t shader[] = {
+      0xf1989f07u, 0x00040505u, 0x4442413du, 0x4543403eu,
+      0x00004746u, // image_bvh_intersect_ray v[?], v[..], s[..] (5 dwords: 3 NSA address words)
+      EncodeSopp(0x01), // s_endpgm
+  };
+  Decoder::Instruction decoded;
+  Decoder::DecodeInstruction(shader, 0u, decoded);
+  Check(decoded.family == Decoder::Family::MIMG &&
+            decoded.opcode == Decoder::Opcode::IMAGE_BVH_INTERSECT_RAY &&
+            decoded.opcode_id == 0xe6u && decoded.word_count == 5u &&
+            decoded.image_nsa_dwords == 3u && decoded.image_nsa_addr[0] == 0x3du,
+        "decoder rejected GFX10 image_bvh_intersect_ray (MIMG 0xe6)");
+
+  auto options = MakeCompileOptions(ShaderType::Pixel);
+  auto result = RecompileForTest(shader, options);
+  Check(!result.spirv.empty(), "image_bvh_intersect_ray did not compile");
+}
+
+
+void TestDynamicBufferReadLowering() {
+  using namespace ShaderRecompiler::IR;
+
+  Program program;
+  program.block_storage.push_back(std::make_unique<Block>());
+  auto* block = program.block_storage.back().get();
+  program.blocks.push_back(block);
+
+  auto& phi = block->AppendNewInst(ValueOpcode::Phi, {}, static_cast<uint64_t>(Type::U32));
+  phi.AddPhiOperand(nullptr, Value(0u));
+  phi.AddPhiOperand(nullptr, Value(0u));
+  auto& resource = block->AppendNewInst(
+      ValueOpcode::GetBufferResource, {Value(&phi), Value(0u), Value(0u), Value(0u)});
+  auto& read = block->AppendNewInst(ValueOpcode::ReadConstBuffer, {Value(&resource), Value(0u)});
+  auto& consumer = block->AppendNewInst(ValueOpcode::IAdd32, {Value(&read), Value(1u)});
+
+  const auto lowered = LowerDynamicBufferReads(program);
+  Check(lowered == 1, "DynamicBuffer: expected one read to be lowered");
+  Check(std::none_of(block->begin(), block->end(), [](const Inst& inst) {
+          return inst.GetOpcode() == ValueOpcode::ReadConstBuffer;
+        }),
+        "DynamicBuffer: descriptor-based read was not replaced");
+  Check(std::any_of(block->begin(), block->end(), [&](const Inst& inst) {
+          return inst.GetOpcode() == ValueOpcode::LoadAddressU32 &&
+                 consumer.Arg(0).Resolve().TryInstruction() == &inst;
+        }),
+        "DynamicBuffer: use was not rewired to the raw address load");
+}
+
 } // namespace
 } // namespace Libs::Graphics
 
@@ -13063,6 +13117,8 @@ int main() {
   // here.
   TestNewShaderDecoderArchitecture();
   TestImageAddressOperands();
+  TestNewShaderRecompilerImageBvhIntersectRayMisses();
+  TestDynamicBufferReadLowering();
   TestSopkCompareImmediateExtension();
   TestNewShaderRecompilerCapturedVopcSdwaCmpxClass();
   TestNewShaderRecompilerIrLookupMissFailsExplicitly();

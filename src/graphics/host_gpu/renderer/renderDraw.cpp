@@ -1445,7 +1445,10 @@ bool RenderExecutor::ExecutePreparedDraw(uint64_t submit_id, CommandBuffer& buff
                                          bool set_bind_debug, bool set_auto_debug) {
 	auto& ucfg = buffer.GetUserConfig();
 	const bool mesh_active = state.vs_input_info.stage.program->stage == ShaderType::Mesh;
-	uint32_t   mesh_groups = 0;
+	if (mesh_active && !state.programs.vertex) {
+		return true; // no mesh pipeline on this host (GetGraphicsPrograms warned once)
+	}
+	uint32_t mesh_groups = 0;
 	if (mesh_active) {
 		const auto& mesh = state.vs_input_info.mesh;
 		if (primitive_restart_enable || mesh.primitives_per_group == 0) {

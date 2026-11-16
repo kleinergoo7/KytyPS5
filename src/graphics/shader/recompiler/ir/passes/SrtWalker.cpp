@@ -16,6 +16,7 @@
 #include <fmt/format.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 extern "C" {
 volatile std::atomic<uint32_t> kyty_local_srt_predicate_mode {1};
@@ -42,6 +43,29 @@ const char* StageName(ShaderType stage) {
 std::string Diagnostic(const ResourcePlan& program, uint32_t pc, const std::string& message) {
 	return fmt::format("shader SRT: hash=0x{:016x} stage={} pc=0x{:08x} {}", program.shader_hash,
 	                   StageName(program.stage), pc, message);
+}
+
+// A flat SRT slot is read once before the draw. An immediate offset is not enough: a base address
+// carried around a loop (a BVH traversal walking a pointer) has no value to read yet, so leave it a
+// runtime read instead of assigning a slot that can only fail at bind time (upstream PR #558).
+bool AddressReachesPhi(Value value, std::vector<const Inst*>& visited, uint32_t depth) {
+	const auto* inst = value.Resolve().TryInstruction();
+	if (inst == nullptr || depth > 64u) {
+		return false;
+	}
+	if (inst->GetOpcode() == ValueOpcode::Phi) {
+		return true;
+	}
+	if (std::ranges::find(visited, inst) != visited.end()) {
+		return false;
+	}
+	visited.push_back(inst);
+	for (size_t index = 0; index < inst->NumArgs(); index++) {
+		if (AddressReachesPhi(inst->Arg(index), visited, depth + 1u)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool AddSignedAddress(uint64_t base, int64_t offset, uint64_t& result) {
@@ -492,7 +516,9 @@ private:
 			return;
 		}
 		const auto offset = inst->Arg(1).Resolve();
-		if (!offset.IsImmediate() || offset.GetType() != Type::U32) {
+		std::vector<const Inst*> visited;
+		if (!offset.IsImmediate() || offset.GetType() != Type::U32 ||
+		    AddressReachesPhi(inst->Arg(0), visited, 0u)) {
 			if (std::ranges::find(m_program.dynamic_reads, value) ==
 			    m_program.dynamic_reads.end()) {
 				m_program.dynamic_reads.push_back(value);

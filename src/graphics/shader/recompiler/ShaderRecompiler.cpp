@@ -11,6 +11,7 @@
 #include "graphics/shader/recompiler/ir/passes/BindingLayout.h"
 #include "graphics/shader/recompiler/ir/passes/ConstantPropagation.h"
 #include "graphics/shader/recompiler/ir/passes/DeadCodeElimination.h"
+#include "graphics/shader/recompiler/ir/passes/DynamicBuffer.h"
 #include "graphics/shader/recompiler/ir/passes/ExecSelects.h"
 #include "graphics/shader/recompiler/ir/passes/ReadLaneElimination.h"
 #include "graphics/shader/recompiler/ir/passes/ResourceMaterialization.h"
@@ -754,6 +755,12 @@ TranslateResult TranslateProgram(std::span<const uint32_t> code, const CompileOp
 	if (options.dump_ir && options.early_dump) {
 		LOGF("%s native IR before resource tracking:\n%s", GetDumpLabel(options),
 		     IR::ProgramToString(ir).c_str());
+	}
+	const auto dynamic_buffers = IR::LowerDynamicBufferReads(ir);
+	if (dynamic_buffers != 0) {
+		LOGF("%s dynamic buffer read lowering: reads=%" PRIu32 "\n", GetDumpLabel(options),
+		     dynamic_buffers);
+		IR::EliminateDeadCode(ir.blocks);
 	}
 	IR::TrackResources(ir);
 	IR::EliminateDeadCode(ir.blocks);

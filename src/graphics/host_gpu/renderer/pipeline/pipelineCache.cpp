@@ -4419,7 +4419,15 @@ PipelineCache::GraphicsPrograms PipelineCache::GetGraphicsPrograms(
 	PrepareProgramInto(vertex_regs, context, user_config, vertex_info, vertex_params);
 	const bool mesh_active   = vertex_info.mesh.threads_num[0] != 0;
 	if (mesh_active) {
-		EXIT_NOT_IMPLEMENTED(!m_graphics.mesh_shader_enabled);
+		if (!m_graphics.mesh_shader_enabled) {
+			// No VK_EXT_mesh_shader (RDNA1/Polaris and older): skip the NGG/GS draw instead of
+			// aborting. The caller drops a draw whose vertex program is empty.
+			static std::atomic_bool mesh_unsupported_warned {false};
+			if (!mesh_unsupported_warned.exchange(true, std::memory_order_relaxed)) {
+				std::printf("Warning: NGG/GS draw skipped: this GPU has no VK_EXT_mesh_shader\n");
+			}
+			return {};
+		}
 		auto& mesh              = vertex_info.mesh;
 		mesh.host_subgroup_size = m_graphics.subgroup_size;
 		const auto& limits      = m_graphics.mesh_shader_properties;

@@ -685,6 +685,21 @@ bool Translator::IMAGE_SAMPLE(const Decoder::Instruction& inst) {
 	return true;
 }
 
+bool Translator::IMAGE_BVH_INTERSECT_RAY(const Decoder::Instruction& inst) {
+	// Hardware ray traversal is not emulated: every ray misses at its own maximum distance (the
+	// address's second dword), so a shader's traversal loop ends as if nothing was hit.
+	const uint32_t nsa = std::min<uint32_t>(inst.image_nsa_dwords * 4u, Decoder::MaxImageNsaAddressComponents);
+	if (nsa != 0u) {
+		WriteOperand(inst.dst, ir.GetVectorReg(static_cast<IR::VectorReg>(inst.image_nsa_addr[0])));
+	} else {
+		WriteOperand(inst.dst, ReadRawU32(OffsetOperand(PlainOperand(MemorySourceAt(inst, 0)), 1u)));
+	}
+	for (uint32_t index = 1; index < 4u; index++) {
+		WriteOperand(OffsetOperand(inst.dst, index), IR::Value(0u));
+	}
+	return true;
+}
+
 bool Translator::IMAGE_GATHER(const Decoder::Instruction& inst) {
 	const auto memory   = MemoryInfoFromDecoded(inst);
 	const auto resource = GetImageResource(memory);
@@ -1050,6 +1065,7 @@ bool Translator::EmitMemory(const Decoder::Instruction& inst) {
 		case Decoder::Opcode::IMAGE_GATHER4_C_O:
 		case Decoder::Opcode::IMAGE_GATHER4_C_LZ_O:
 		case Decoder::Opcode::IMAGE_GATHER4H: return IMAGE_GATHER(inst);
+		case Decoder::Opcode::IMAGE_BVH_INTERSECT_RAY: return IMAGE_BVH_INTERSECT_RAY(inst);
 
 		case Decoder::Opcode::DS_MIN_F32:
 			return DS_MINMAX_F32(inst, IR::ValueOpcode::SharedAtomicFMin32);
