@@ -802,7 +802,7 @@ uint64_t CommandScheduler::SubmitBuffers(std::span<const SubmitEntry> entries, S
 		const LocalVulkanRecording::Segment segments[] {
 		    {&deferred, offsetof(DeferredSubmit, commands) + deferred.count * sizeof(VkCommandBuffer)}};
 		LocalVulkanRecording::NoteDeferredSubmitQueued();
-		if (!LocalVulkanRecording::EnqueueDeferred(ReplaySubmit, segments, true, "ReplaySubmit")) {
+		if (!LocalVulkanRecording::EnqueueDeferred(ReplaySubmit, segments, true, "ReplaySubmitGfx")) {
 			// Keep order: everything recorded so far, then this exact submit.
 			LocalVulkanRecording::Drain();
 			ReplaySubmit(segments, VULKAN_HPP_DEFAULT_DISPATCHER);

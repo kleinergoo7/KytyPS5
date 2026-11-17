@@ -200,7 +200,7 @@ public:
 		Record(d, command, regions, destination);
 #ifdef KYTY_LOCAL_VULKAN_RECORDING
 		const LocalVulkanRecording::Segment segments[] {{&packet, sizeof(packet)}};
-		if (!direct && LocalVulkanRecording::EnqueueDeferred(ReplaySubmit, segments, true, "ReplaySubmit")) return value;
+		if (!direct && LocalVulkanRecording::EnqueueDeferred(ReplaySubmit, segments, true, "ReplaySubmitReadback")) return value;
 #endif
 		Submit(packet, d);
 		return value;
