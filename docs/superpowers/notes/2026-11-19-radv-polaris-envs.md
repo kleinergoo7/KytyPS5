@@ -76,3 +76,29 @@ blocking ~2.0 s (kernel: `ring gfx timeout, soft recovered`).
 6. `RADV_DEBUG` feature-bisect: `nodcc`, `nofastclears`, `nobinning`, `nohiz`, `nofmask`.
 7. `RADV_PERFTEST=nosam,dmashaders` — VRAM/BAR-related.
 8. `RADV_PROFILE_PSTATE=standard` — rule out clock instability.
+
+## RESULT: RADV_DEBUG=hang,syncshaders produced a hang report (2026-11-17 20:30)
+
+Dump: /home/reng/radv_dumps_212523_2026.11.17_20.30.08/
+- trace.log: the command processor STOPPED at trace point 55 (NOP c0001000 marked
+  "!!!!! This trace point was NOT reached by the CP !!!!!"). Immediately before it:
+  a `WRITE_DATA` packet with `WR_CONFIRM = WAIT_FOR_WRITE_CONFIRMATION` writing to
+  `DST_GDS_ADDR = 4096 (0x1000)` / full address 0x100001000, then CP_COHER sync
+  (CP_COHER_SIZE=0xffffffff, POLL_INTERVAL=10). The hang is the CP waiting for a
+  GDS write-confirmation that never arrives — a command-stream-level hang, NOT a shader infinite loop.
+- registers.log GRBM_STATUS at hang: GUI_ACTIVE=1, CP_BUSY=1, CB_BUSY=1, DB_BUSY=1,
+  IA_BUSY=1, SPI_BUSY=1, SX_BUSY=1, WD_BUSY=1; CB_CLEAN=0. vm_fault.log EMPTY (no memory violation).
+- 2 SPIR-V modules dumped (99d904...spv, d27e665...spv) — likely the shaders bound around the hang.
+- UMR tools not installed (umr_ring.log/umr_waves.log empty) so no wave state.
+- app_info.log: RADV_PERFTEST=transfer_queue is deprecated (unrelated).
+
+CONCLUSION: the ~2.0s graphics-queue vkQueueSubmit blocks in a GDS write-confirmation
+wait; kernel ring gfx timeout is the same event. This points at the GDS buffer /
+write-confirm path in the driver+emulator interaction, not a bad shader.
+
+NEXT SWINGS (env-only, no code):
+1. RADV_DEBUG=hang RADV_PERFTEST=nosam — driver objects to system memory (VRAM pressure).
+2. RADV_DEBUG=hang RADV_QUEUE_DISABLE=compute — remove compute queue (GI walker).
+3. RADV_DEBUG=hang,nodcc / nofastclears / nobinning / noibchaining — feature bisect.
+4. RADV_TRAP_HANDLER=1 RADV_TRAP_HANDLER_EXCP=mem_viol — GFX8 memory-violation trap.
+5. RADV_DEBUG=hang,fullsync — if the GDS-confirm wait is a race, fullsync may avoid it.
