@@ -1,5 +1,7 @@
 #include "graphics/presentation/systemOverlay.h"
 
+#include "graphics/presentation/debugPanel.h"
+
 #include "SDL.h"
 #include "common/assert.h"
 #include "common/stringUtils.h"
@@ -1341,7 +1343,7 @@ struct SystemOverlay::Impl {
 	                  SystemOverlayHud* hud) {
 		OverlaySnapshot snapshot;
 		bool            dialog = GetOverlaySnapshot(&snapshot);
-		if (!dialog && hud == nullptr) {
+		if (!dialog && hud == nullptr && !DebugPanel::Enabled()) {
 			return false;
 		}
 		const auto prepared_session = snapshot.session;
@@ -1391,6 +1393,10 @@ struct SystemOverlay::Impl {
 		}
 		if (hud != nullptr) {
 			DrawHud(*hud);
+		}
+		if (DebugPanel::Enabled()) {
+			DebugPanel::Draw(graphics, {static_cast<float>(frame_extent.width),
+			                           static_cast<float>(frame_extent.height)});
 		}
 		ImGui::Render();
 		extent = frame_extent;

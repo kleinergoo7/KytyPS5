@@ -12,6 +12,8 @@
 #include "graphics/host_gpu/vulkanCommon.h"
 #include "graphics/presentation/presenter.h"
 #include "graphics/presentation/systemOverlay.h"
+
+#include "graphics/presentation/debugPanel.h"
 #include "graphics/presentation/videoOut.h"
 #include "graphics/presentation/window/windowInternal.h"
 #include "loader/demonsSoulsRenderSize.h"
@@ -869,7 +871,7 @@ struct Presenter::Impl {
 			RenderLockGuard render_lock(renderer.GetMutex());
 			auto&           command = present_scheduler.BeginCommand();
 			const bool      draw_system_overlay =
-			    (overlay_visual.active || hud != nullptr) && swapchain.PrepareSystemOverlay(hud);
+			    (overlay_visual.active || hud != nullptr || DebugPanel::Enabled()) && swapchain.PrepareSystemOverlay(hud);
 			if (hud == nullptr || !draw_system_overlay) {
 				FrameGen::SetStaticRect(0.0f, 0.0f, 0.0f, 0.0f); // (no panel: the whole picture moves)
 			} else {
@@ -2051,7 +2053,7 @@ void Presenter::Present(Frame& frame, bool reuse) {
 			if (FrameGen::Enabled()) render_lock.emplace(m_impl->renderer.GetMutex());
 			auto&             command          = m_impl->present_scheduler.BeginCommand();
 			const bool        draw_system_overlay =
-			    (overlay_visual.active || hud != nullptr) && swapchain.PrepareSystemOverlay(hud);
+			    (overlay_visual.active || hud != nullptr || DebugPanel::Enabled()) && swapchain.PrepareSystemOverlay(hud);
 			if (FrameGen::Enabled() && (hud == nullptr || !draw_system_overlay)) {
 				FrameGen::SetStaticRect(0.0f, 0.0f, 0.0f, 0.0f); // (no panel: the whole picture moves)
 			}

@@ -40,6 +40,8 @@
 #include "local-platform.h"
 #include "perf-overlay.h"
 #include "graphics/presentation/systemOverlay.h"
+
+#include "graphics/presentation/debugPanel.h"
 #include "graphics/presentation/window/hostInput.h"
 #include "graphics/presentation/window/startupProgress.h"
 #include "graphics/presentation/window/windowInternal.h"
@@ -326,6 +328,11 @@ static void GameEventKeyboard(WindowLoopState& game, const EventKeyboard& key) {
 			case SDLK_F8:
 				if (!key.repeat) {
 					PerfOverlay::CycleLevel();
+				}
+				break;
+			case SDLK_F2:
+				if (!key.repeat) {
+					DebugPanel::Toggle();
 				}
 				break;
 			case SDLK_F11:

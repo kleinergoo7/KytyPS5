@@ -11,6 +11,9 @@
 #include "emulator.h"
 #include "kytyGitVersion.h"
 #include "local-platform.h"
+
+#include "graphics/presentation/debugPanel.h"
+#include "common/debugCounters.h"
 #include "speculation-ram-gate.h"
 
 #include <atomic>
@@ -479,6 +482,11 @@ int main(int argc, char* argv[]) {
 	if (show_help) {
 		PrintUsage();
 		return 0;
+	}
+
+	if (const char* v = std::getenv("KYTY_DEBUG_PANEL"); v != nullptr && *v != '\0' && v[0] != '0') {
+		Libs::Graphics::DebugPanel::SetEnabled(true);
+		Common::DebugCounters::SetEnabled(true);
 	}
 
 	LocalPlatform::StartHeapTrimmer();
