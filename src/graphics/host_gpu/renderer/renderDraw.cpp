@@ -1478,6 +1478,9 @@ bool RenderExecutor::ExecutePreparedDraw(uint64_t submit_id, CommandBuffer& buff
 		    index_source.address, static_cast<uint64_t>(draw.index_count) *
 		                              index_source.guest_element_size);
 	}
+	if (!state.vs_input_info.stage || (state.ps_active && !state.ps_input_info.stage)) {
+		return true; // GetGraphicsPrograms dropped the draw (e.g. NGG/GS unsupported here)
+	}
 	LogDrawPhase(draw.name, "PrepareBindings");
 	NativePreparationScratch<GraphicsBindings> binding_storage(
 	    kyty_local_binding_scratch_mode.load(std::memory_order_relaxed) != 0);
