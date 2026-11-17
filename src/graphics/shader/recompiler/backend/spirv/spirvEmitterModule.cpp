@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <string_view>
 namespace Libs::Graphics::ShaderRecompiler::Spirv::Emitter {
 
 const IR::DescriptorBinding* DescriptorBinding(const EmitterState&       state,
@@ -409,6 +410,29 @@ void AllocateInputVariables(EmitterState& state) {
 			}
 			if (needs_lod_helper) break;
 		}
+	}
+	static const int live_exec_mode = [] {
+		const char* value = std::getenv("KYTY_PS_LIVE_EXEC");
+		if (value == nullptr || value[0] == '\0') return 0;
+		if (std::string_view(value) == "all") return 2;
+		if (std::string_view(value) == "0") return 0;
+		return 1;
+	}();
+	if (live_exec_mode != 0 && state.stage == ShaderType::Pixel && !needs_lod_helper) {
+		bool applies = (live_exec_mode == 2);
+		if (!applies) {
+			for (const auto* block: state.program.blocks) {
+				for (const auto& inst: *block) {
+					if (inst.GetOpcode() == IR::ValueOpcode::DataAppend ||
+					    inst.GetOpcode() == IR::ValueOpcode::DataConsume) {
+						applies = true;
+						break;
+					}
+				}
+				if (applies) break;
+			}
+		}
+		if (applies) needs_lod_helper = true;
 	}
 	if (needs_lod_helper) {
 		state.lod_helper_variable = state.builder.AllocateId();

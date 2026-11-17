@@ -971,6 +971,23 @@ void IncludeInstructionVectorRegisters(const Decoder::Instruction& inst, uint32_
 	}
 }
 
+// KYTY_PS_LIVE_EXEC: pixel shaders start with EXEC = non-helper invocations only.
+bool StartsWithLiveExec(const Decoder::Program& decoded, const TranslateOptions& options) {
+	static const int mode = [] {
+		const char* value = std::getenv("KYTY_PS_LIVE_EXEC");
+		if (value == nullptr || value[0] == '\0') return 0;
+		if (std::string_view(value) == "all") return 2;
+		if (std::string_view(value) == "0") return 0;
+		return 1;
+	}();
+	if (mode == 0 || options.stage != ShaderType::Pixel) return false;
+	if (mode == 2) return true;
+	return std::ranges::any_of(decoded.instructions, [](const Decoder::Instruction& inst) {
+		return inst.opcode == Decoder::Opcode::DS_APPEND ||
+		       inst.opcode == Decoder::Opcode::DS_CONSUME;
+	});
+}
+
 void ValidateTranslateOptions(const TranslateOptions& options) {
 	if (options.wave_size != 32u && options.wave_size != 64u) {
 		EXIT("shader translation requires wave32 or wave64, got %u", options.wave_size);
@@ -1147,6 +1164,10 @@ IR::Program TranslateProgram(const Decoder::Program& decoded, const CFG::Graph& 
 				initial_exec = entry_ir.ULessThan(builtin(IR::StageInputKind::LocalInvocationIndex),
 				                                  IR::U32(IR::Value(total_threads)));
 			}
+		}
+		if (StartsWithLiveExec(decoded, options)) {
+			initial_exec = entry_ir.LogicalNot(
+			    IR::U1(entry_ir.Emit(IR::ValueOpcode::IsHelperInvocation)));
 		}
 		entry_ir.SetExec(initial_exec);
 		const auto initial_mask = entry_ir.Emit(IR::ValueOpcode::Ballot, {initial_exec});

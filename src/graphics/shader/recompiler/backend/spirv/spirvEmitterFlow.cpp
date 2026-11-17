@@ -710,6 +710,17 @@ bool EmitValueFlow(ValueEmitContext& ctx, const IR::Inst& inst) {
 			ctx.Define(inst, EmitBuiltinU32(ctx, static_cast<IR::StageInputKind>(inst.Arg(0).U32()),
 			                                inst.Arg(1).U32()));
 			return true;
+		case IR::ValueOpcode::IsHelperInvocation: {
+			if (state.lod_helper_variable == 0) {
+				ctx.Fail(inst, "helper-invocation query without lod_helper_variable");
+				ctx.Define(inst, ConstantBool(state, false));
+			} else {
+				const auto helper = state.builder.AllocateId();
+				state.builder.AddFunction({OpLoad, TypeBool(state), helper, state.lod_helper_variable});
+				ctx.Define(inst, helper);
+			}
+			return true;
+		}
 		case IR::ValueOpcode::UndefU1:
 		case IR::ValueOpcode::UndefU8:
 		case IR::ValueOpcode::UndefU16:
