@@ -61,7 +61,9 @@ GAME="${KYTY_GAME:-}"
 # The vblank: KYTY_VBLANK (default 60), or a --vblank-frequency among the arguments. Above 60 Hz Demon's Souls needs
 # gameMinDeltaTime (as run-windows.ps1 gives it, 5550c1bb): it steps its game by at least a frame of its target rate
 # each frame, so every frame past 60 fps (30 in the cinematic mode) played the game that much faster.
-VBLANK="${KYTY_VBLANK:-60}"
+# Default to 30 Hz while debugging on a single GPU: 60 Hz pegs the RX 580 at ~97% GPU busy and starves
+# the desktop compositor (laggy desktop). 30 Hz halves it to ~54%, leaving headroom. Override with KYTY_VBLANK=60.
+VBLANK="${KYTY_VBLANK:-30}"
 previous=""
 for argument in "$@"; do
   [ "$previous" != "--vblank-frequency" ] || VBLANK="$argument"
