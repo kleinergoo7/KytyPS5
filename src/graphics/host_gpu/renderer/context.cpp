@@ -185,7 +185,7 @@ void CommandBuffer::Begin(bool placeholder) {
 		                                ? LiveTrace::g_timestamp_next.fetch_add(1) % LiveTrace::TimestampSlots
 		                                : UINT32_MAX;
 		const LocalVulkanRecording::Segment segments[] {{&raw, sizeof(raw)}, {&m_timestamp_slot, sizeof(m_timestamp_slot)}};
-		if (LocalVulkanRecording::EnqueueDeferred(ReplayBegin, segments, false)) {
+		if (LocalVulkanRecording::EnqueueDeferred(ReplayBegin, segments, false, "ReplayBegin")) {
 			return;
 		}
 	}

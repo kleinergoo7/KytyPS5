@@ -663,7 +663,7 @@ void Record(const Draw& draw, std::span<const vk::Buffer> vertex_buffers,
         {vertex_offsets.data(), vertex_offsets.size_bytes()},
         {commands.data(), commands.size_bytes()}
     };
-    if (!LocalVulkanRecording::EnqueuePacket(Replay, segments))
+    if (!LocalVulkanRecording::EnqueuePacket(Replay, segments, {}, "DrawPacket"))
         LocalVulkanRecording::ReplayInline(Replay, segments);
 }
 static DynamicState Capture(const CommandBuffer& buffer, const ShaderVertexInputInfo& input,

@@ -150,7 +150,7 @@ def generate(registry, header):
                              name.startswith('vkCmdBindShaders') or name.startswith('vkCmdExecute') or
                              name.startswith('vkCmdBeginRenderPass') or name.startswith('vkCmdNextSubpass'))
             invalidate = 'InvalidateRawState(); ' if mutates_state else ''
-            declarations.append(f'            writer.Command([=] {{ {invalidate}original.{name}({", ".join(args)}); }});')
+            declarations.append(f'            writer.Command("{name}", [=] {{ {invalidate}original.{name}({", ".join(args)}); }});')
             declarations.append(f'        }})) {{ {mark}return; }}')
             declarations.append('    }')
         # A progress query observes previously submitted work and neither

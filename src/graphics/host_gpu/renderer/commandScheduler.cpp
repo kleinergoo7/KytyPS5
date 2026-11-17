@@ -802,7 +802,7 @@ uint64_t CommandScheduler::SubmitBuffers(std::span<const SubmitEntry> entries, S
 		const LocalVulkanRecording::Segment segments[] {
 		    {&deferred, offsetof(DeferredSubmit, commands) + deferred.count * sizeof(VkCommandBuffer)}};
 		LocalVulkanRecording::NoteDeferredSubmitQueued();
-		if (!LocalVulkanRecording::EnqueueDeferred(ReplaySubmit, segments, true)) {
+		if (!LocalVulkanRecording::EnqueueDeferred(ReplaySubmit, segments, true, "ReplaySubmit")) {
 			// Keep order: everything recorded so far, then this exact submit.
 			LocalVulkanRecording::Drain();
 			ReplaySubmit(segments, VULKAN_HPP_DEFAULT_DISPATCHER);
@@ -1137,7 +1137,7 @@ void CommandScheduler::DiscardOne(Recorder& recorder, const Recorder::Recorded& 
 	}
 #ifdef KYTY_LOCAL_VULKAN_RECORDING
 	const LocalVulkanRecording::Segment segments[] {{&command, sizeof(command)}};
-	if (!recorded.ended && LocalVulkanRecording::EnqueueDeferred(ReplayDiscard, segments, false)) {
+	if (!recorded.ended && LocalVulkanRecording::EnqueueDeferred(ReplayDiscard, segments, false, "ReplayDiscard")) {
 		recorder.buffers[recorded.index].second = 0; // (reset by the stream, before any later use of it there)
 		return;
 	}

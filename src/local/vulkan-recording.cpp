@@ -1,5 +1,6 @@
 #include "vulkan-recording.h"
 #include "graphics/host_gpu/vulkanCommon.h"
+#include "cpuStallWatch.h"
 #include "live-census.h"
 #include "live-counters.h"
 #include "live-trace-gpu.h"
@@ -13,6 +14,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <immintrin.h>
@@ -62,7 +64,15 @@ struct Header {
     void (*destroy)(void*) = nullptr;
     uint32_t payload = 0;
     uint32_t next = End;
+    const char* label = nullptr; // diagnostic: Vulkan call name replayed by execute()
 };
+
+// Diagnostic (KYTY_CPU_STALL_WATCH): time each replayed packet / Vulkan call on the worker and log
+// the ones that block for >100 ms, so a render thread stuck in Drain() can be tied to the exact op.
+bool WorkerTraceOn() {
+    static const bool on = CpuStallWatch::ThresholdMs() != 0;
+    return on;
+}
 } // namespace
 struct ChunkPool;
 struct Chunk {
@@ -222,7 +232,7 @@ public:
         return target;
     }
     template<typename Function>
-    void Command(Function function) {
+    void Command(const char* label, Function function) {
         static_assert(std::is_nothrow_move_constructible_v<Function>);
         static_assert(std::is_nothrow_destructible_v<Function>);
         auto* header = static_cast<Header*>(Allocate(sizeof(Header), alignof(Header)));
@@ -233,6 +243,8 @@ public:
             .execute = [](void* pointer) { (*static_cast<Function*>(pointer))(); },
             .destroy = nullptr,
             .payload = static_cast<uint32_t>(static_cast<std::byte*>(payload) - data),
+            .next = End,
+            .label = label,
         };
         if constexpr (!std::is_trivially_destructible_v<Function>)
             header->destroy = [](void* pointer) { static_cast<Function*>(pointer)->~Function(); };
@@ -249,8 +261,12 @@ struct RecordWait {
     RecordWait(const RecordWait&) = delete;
     RecordWait& operator=(const RecordWait&) = delete;
     ~RecordWait() {
-        LiveCounters::Add(LiveCounters::RecordWaitUs,
-                          static_cast<uint64_t>((std::chrono::steady_clock::now() - start).count()) / 1000u);
+        const auto ns = (std::chrono::steady_clock::now() - start).count();
+        LiveCounters::Add(LiveCounters::RecordWaitUs, static_cast<uint64_t>(ns) / 1000u);
+        if (WorkerTraceOn() && ns > 200'000'000ll) {
+            std::printf("RecordWorker: render Drain blocked %.1f ms\n", static_cast<double>(ns) / 1e6);
+            std::fflush(stdout);
+        }
     }
 };
 
@@ -479,7 +495,16 @@ private:
             if (chunk.pool) t_splice_target = chunk.target;
             for (auto offset = chunk.first; offset != End;) {
                 const auto* header = reinterpret_cast<const Header*>(chunk.data.data() + offset);
+                const bool trace = WorkerTraceOn();
+                const auto op_start = trace ? std::chrono::steady_clock::now()
+                                            : std::chrono::steady_clock::time_point {};
                 header->execute(chunk.data.data() + header->payload);
+                if (trace) {
+                    const auto elapsed = std::chrono::steady_clock::now() - op_start;
+                    if (elapsed > std::chrono::milliseconds(100))
+                        std::printf("RecordWorker: slow op %-32s %.1f ms\n", header->label ? header->label : "?",
+                                    static_cast<double>(elapsed.count()) / 1e6);
+                }
                 if (header->destroy) header->destroy(chunk.data.data() + header->payload);
                 offset = header->next;
             }
@@ -612,7 +637,7 @@ uint64_t StateEpoch() {
     return executing ? executing->state_epoch.load(std::memory_order_relaxed) : UINT64_MAX;
 }
 bool EnqueuePacket(ReplayPacket replay, std::span<const Segment> segments,
-                   std::shared_ptr<const void> owner) {
+                   std::shared_ptr<const void> owner, const char* label) {
     if (!PacketsEnabled() || !replay || segments.size() > 8) return false;
     for (const auto& segment : segments)
         if (segment.size && !segment.data) return false;
@@ -623,7 +648,7 @@ bool EnqueuePacket(ReplayPacket replay, std::span<const Segment> segments,
         for (size_t i = 0; i < segments.size(); ++i)
             copied[i] = {writer.Copy(segments[i].data, segments[i].size), segments[i].size};
         const auto count = segments.size();
-        writer.Command([owner, copied, count, replay] { replay({copied.data(), count}, original); });
+        writer.Command(label, [owner, copied, count, replay] { replay({copied.data(), count}, original); });
     });
 }
 bool DeferredSubmitEnabled() {
@@ -631,7 +656,7 @@ bool DeferredSubmitEnabled() {
     return producer && !t_passive && kyty_local_vulkan_recording_mode.load(std::memory_order_relaxed) != 0 &&
         kyty_local_deferred_submit_mode.load(std::memory_order_relaxed) != 0;
 }
-bool EnqueueDeferred(ReplayPacket replay, std::span<const Segment> segments, bool publish) {
+bool EnqueueDeferred(ReplayPacket replay, std::span<const Segment> segments, bool publish, const char* label) {
     if (!DeferredSubmitEnabled() || !replay || segments.size() > 8) return false;
     auto* stream = RecordingStream();
     if (!stream) return false;
@@ -641,7 +666,7 @@ bool EnqueueDeferred(ReplayPacket replay, std::span<const Segment> segments, boo
             copied[i] = {writer.Copy(segments[i].data, segments[i].size), segments[i].size};
         const auto count = segments.size();
         // A new command buffer may reuse a handle: drop raw-state reuse as a direct call would.
-        writer.Command([copied, count, replay] { InvalidateRawState(); replay({copied.data(), count}, original); });
+        writer.Command(label, [copied, count, replay] { InvalidateRawState(); replay({copied.data(), count}, original); });
     });
     if (queued && publish) stream->Flush();
     return queued;

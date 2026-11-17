@@ -203,7 +203,7 @@ static bool RecordLocalDescriptors(RenderContext& context, vk::CommandBuffer com
     for (size_t i = 0; i < inputs.size(); ++i)
         segments[3 + i] = {inputs[i]->shader_data.data(), inputs[i]->shader_data.size() * sizeof(uint32_t)};
     const std::span data {segments, inputs.size() + 3};
-    if (!LocalVulkanRecording::EnqueuePacket(ReplayLocalDescriptors, data, pipeline.local_descriptor_plan))
+    if (!LocalVulkanRecording::EnqueuePacket(ReplayLocalDescriptors, data, pipeline.local_descriptor_plan, "ReplayLocalDescriptors"))
         LocalVulkanRecording::ReplayInline(ReplayLocalDescriptors, data);
     return true;
 }

@@ -2494,7 +2494,7 @@ void BufferCache::FlushPrologueCopies(vk::CommandBuffer command) {
 	                             static_cast<uint32_t>(m_prologue_copies.size())};
 	m_prologue_copies.clear();
 	const LocalVulkanRecording::Segment segments[] {{&copies, sizeof(copies)}};
-	if (!LocalVulkanRecording::EnqueueDeferred(ReplayIndirectCopies, segments, false)) {
+	if (!LocalVulkanRecording::EnqueueDeferred(ReplayIndirectCopies, segments, false, "ReplayIndirectCopies")) {
 		LocalVulkanRecording::Drain();
 		ReplayIndirectCopies(segments, VULKAN_HPP_DEFAULT_DISPATCHER);
 	}

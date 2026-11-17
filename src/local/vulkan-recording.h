@@ -33,7 +33,7 @@ bool PacketsEnabled();
 // Segments are copied transactionally. An optional immutable owner is retained
 // until replay finishes; callers never lend stack or mutable-cache pointers.
 bool EnqueuePacket(ReplayPacket replay, std::span<const Segment> segments,
-                   std::shared_ptr<const void> owner = {});
+                   std::shared_ptr<const void> owner = {}, const char* label = nullptr);
 // Preserve order when a packet cannot fit. Does not retain any argument.
 void ReplayInline(ReplayPacket replay, std::span<const Segment> segments);
 // A packet's replay that records commands the recording does not see (a library's own: DLSS through Streamline)
@@ -43,7 +43,8 @@ void InvalidateReplayState();
 // commands instead of draining the recording queue first (KYTY_DEFERRED_SUBMIT).
 // A submit packet is published at once: other threads may wait on its tick.
 bool DeferredSubmitEnabled();
-bool EnqueueDeferred(ReplayPacket replay, std::span<const Segment> segments, bool publish);
+bool EnqueueDeferred(ReplayPacket replay, std::span<const Segment> segments, bool publish,
+                     const char* label = nullptr);
 // Deferred queue submissions: counted when queued and when the worker has handed them to
 // the driver. WaitDeferredSubmits blocks until every submission queued so far reached the
 // driver (not the GPU). A present must not depend on a signal still in the worker's queue:
