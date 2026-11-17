@@ -6667,6 +6667,21 @@ PipelineCache::GraphicsPrograms PipelineCache::GetGraphicsPrograms(
 			std::printf("Warning: NGG/GS draw skipped: this GPU has no VK_EXT_mesh_shader\n");
 			std::fflush(stdout);
 		}
+		// Log the first few distinct mesh shader hashes so a software fallback can be targeted.
+		{
+			static std::atomic_uint64_t logged_mask {0};
+			const uint64_t hash = vertex_info[0].stage.program != nullptr
+			                          ? vertex_info[0].stage.program->shader_hash
+			                          : 0;
+			uint64_t mask = logged_mask.load(std::memory_order_relaxed);
+			if (hash != 0 && (mask & (1ull << 6)) == 0 && (mask & (1ull << (hash & 63u))) == 0) {
+				std::printf("Warning: NGG mesh shader 0x%016" PRIx64 " skipped (threads %u,%u,%u)\n",
+				            hash, vertex_info[0].mesh.threads_num[0], vertex_info[0].mesh.threads_num[1],
+				            vertex_info[0].mesh.threads_num[2]);
+				std::fflush(stdout);
+				logged_mask.fetch_or((1ull << 6) | (1ull << (hash & 63u)), std::memory_order_relaxed);
+			}
+		}
 		return {};
 	}
 	if (mesh_active) {
