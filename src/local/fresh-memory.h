@@ -102,6 +102,12 @@ inline void SetArmed(State& state, uint64_t granule, bool armed) {
 	else state.armed[granule >> 6u].fetch_and(~bit, std::memory_order_acq_rel);
 }
 
+inline bool IsArmed(const State& state, uint64_t granule) {
+	if (granule >= state.granules) return false;
+	const uint64_t bit = uint64_t {1} << (granule & 63u);
+	return (state.armed[granule >> 6u].load(std::memory_order_acquire) & bit) != 0;
+}
+
 // A guest view of backing-view bytes [backing, backing + size) mapped again (a partial unmap of its view): the
 // write-watched granules there are written, as a CPU write between the map and its protection would go unseen. Bits
 // only (callable under the address-space lock); the watch itself goes at the next write fault.

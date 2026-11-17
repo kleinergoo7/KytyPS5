@@ -1666,6 +1666,19 @@ ImageId TextureCache::ResolveDepthOverlap(const ImageInfo& requested, BindingTyp
 	if (cached.binding.is_bound || cached.binding.is_target) {
 		cached.binding.needs_rebind = true;
 	}
+	// The replacement covers the same guest bytes: it takes over the watch on their pages. Transfer the
+	// tracking metadata BEFORE CopyImage, so CopyImage's TrackImage sees the replacement as already
+	// tracked and returns without adding a second set of watchers (the previous ordering added watchers
+	// to already-watched pages on every depth overlap, leaking the 7-bit page watcher counter).
+	if (cached.IsTracked() && !replacement.IsTracked() && replacement.info.data.address == cached.info.data.address &&
+	    replacement.info.data.size == cached.info.data.size) {
+		replacement.track_addr      = cached.track_addr;
+		replacement.track_addr_end  = cached.track_addr_end;
+		replacement.untracked_holes = std::move(cached.untracked_holes);
+		cached.untracked_holes.clear();
+		cached.track_addr     = 0;
+		cached.track_addr_end = 0;
+	}
 	if (cached.backing.samples == replacement.backing.samples) {
 		if (!cached.info.resources.Contains(info.resources)) {
 			// A copy covers only common subresources. Seed newly added layers/mips
@@ -1695,18 +1708,6 @@ ImageId TextureCache::ResolveDepthOverlap(const ImageInfo& requested, BindingTyp
 		LOGF_COLOR(Log::Color::BrightYellow,
 		           "TextureCache: unsupported unequal-sample depth overlap copy (%u -> %u)\n",
 		           cached.backing.samples, replacement.backing.samples);
-	}
-	// The replacement covers the same guest bytes: it takes over the watch on their pages. Freeing
-	// dropped it and the replacement's first use set it again, two page-watcher passes over the whole
-	// range (a 135 MiB shadow-map array switching between depth and colour: ~10 ms each).
-	if (cached.IsTracked() && !replacement.IsTracked() && replacement.info.data.address == cached.info.data.address &&
-	    replacement.info.data.size == cached.info.data.size) {
-		replacement.track_addr      = cached.track_addr;
-		replacement.track_addr_end  = cached.track_addr_end;
-		replacement.untracked_holes = std::move(cached.untracked_holes);
-		cached.untracked_holes.clear();
-		cached.track_addr     = 0;
-		cached.track_addr_end = 0;
 	}
 	ParkImage(cached_id);
 	return replacement_id;

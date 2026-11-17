@@ -564,7 +564,7 @@ void GpuResourceManager::FreshWatch(uint64_t vaddr, uint64_t size) {
 			                                    FreshMemory::Granule - ((address - fresh->base) & (FreshMemory::Granule - 1)));
 			const auto begin = at + offset;
 			offset += bytes;
-			if (granule == UINT64_MAX || FreshMemory::IsWritten(*fresh, granule)) continue;
+			if (granule == UINT64_MAX || FreshMemory::IsWritten(*fresh, granule) || FreshMemory::IsArmed(*fresh, granule)) continue;
 			if ((begin & (TRACKER_PAGE_SIZE - 1)) != 0 || (bytes & (TRACKER_PAGE_SIZE - 1)) != 0 ||
 			    m_fresh_parts.contains(begin)) {
 				// (Not whole pages, or watched already: counted as written rather than half watched.)
