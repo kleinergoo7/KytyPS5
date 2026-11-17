@@ -796,7 +796,7 @@ static bool IsReadableRange(uint64_t addr, uint64_t size) {
 static RuntimeLinker* g_faulting_linker = nullptr;
 
 static std::string DescribeGuestAddress(uint64_t vaddr) {
-	if (g_faulting_linker == nullptr || vaddr == 0) {
+	if (g_faulting_linker == nullptr || vaddr == 0 || vaddr < 0x1000) {
 		return "unmapped";
 	}
 	const auto* program = g_faulting_linker->FindProgramByAddr(vaddr);
@@ -813,7 +813,7 @@ std::string DescribeGuestAddressForDiagnostics(uint64_t vaddr) {
 }
 
 static std::string DescribeGuestCode(uint64_t vaddr) {
-	if (g_faulting_linker == nullptr || g_faulting_linker->FindProgramByAddr(vaddr) == nullptr) {
+	if (g_faulting_linker == nullptr || vaddr == 0 || vaddr < 0x1000 || g_faulting_linker->FindProgramByAddr(vaddr) == nullptr) {
 		return {};
 	}
 	std::string bytes;
@@ -1004,13 +1004,11 @@ static bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exc
 #endif
 		std::fflush(stdout);
 	}
-	EXIT("Unhandled host exception: type=%u code=%u pc=0x%016" PRIx64 " (%s)"
-	     " access=%u address=0x%016" PRIx64 " (%s) code=%s\n",
-	     static_cast<unsigned>(info->type), info->native_code, info->exception_address,
-	     DescribeGuestAddress(info->exception_address).c_str(),
-	     static_cast<unsigned>(info->access_violation_type), info->access_violation_vaddr,
-	     DescribeGuestAddress(info->access_violation_vaddr).c_str(),
-	     DescribeGuestCode(info->exception_address).c_str());
+	std::printf("Unhandled host exception: type=%u code=%u pc=0x%016" PRIx64 " access=%u address=0x%016" PRIx64 "\n",
+	            static_cast<unsigned>(info->type), info->native_code, info->exception_address,
+	            static_cast<unsigned>(info->access_violation_type), info->access_violation_vaddr);
+	std::fflush(stdout);
+	std::_Exit(1);
 }
 
 static void EncodeId64(uint16_t in_id, std::string* out_id) {
@@ -1884,6 +1882,7 @@ Program* RuntimeLinker::FindProgramByAddr(uint64_t vaddr) {
 	Common::LockGuard lock(m_mutex);
 
 	for (auto* p: m_programs) {
+		if (p == nullptr || p->elf == nullptr) continue;
 		const auto* ehdr = p->elf->GetEhdr();
 		const auto* phdr = p->elf->GetPhdr();
 
