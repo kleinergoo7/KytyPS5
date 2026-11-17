@@ -102,3 +102,18 @@ NEXT SWINGS (env-only, no code):
 3. RADV_DEBUG=hang,nodcc / nofastclears / nobinning / noibchaining — feature bisect.
 4. RADV_TRAP_HANDLER=1 RADV_TRAP_HANDLER_EXCP=mem_viol — GFX8 memory-violation trap.
 5. RADV_DEBUG=hang,fullsync — if the GDS-confirm wait is a race, fullsync may avoid it.
+
+## BREAKTHROUGH (2026-11-17 20:33): syncshaders lets the game leave the splash
+
+Run: `RADV_DEBUG=hang,syncshaders KYTY_LOOP_GUARD=64 KYTY_LOOP_GUARD_SHADERS=657ad04626bf9d55`
+with a screenshot at 75 s. Result: `/tmp/opencode/astro-sync.png` shows the STARFIELD BACKGROUND
+WITHOUT the "Team Asobi" logo — the game ADVANCED PAST THE SPLASH SCREEN for the first time.
+
+With syncshaders:
+- `ReplaySubmitGfx` stalls dropped from ~2050 ms to ~240 ms (10x better; hang largely mitigated).
+- GPU waits ~6 ms (was ~230 ms); run survived full 100 s (exit 124, no device loss in that window).
+- At the end `compile=198 ms, cpu=209` — real shader compilation for the transition happened.
+
+CONCLUSION: `RADV_DEBUG=syncshaders` is the key. The GDS write-confirmation hang on the RX 580
+is caused by shader/command-stream asynchrony; serializing shader sync avoids it. This is a
+driver-level workaround the user can use to reach gameplay — no emulator code change needed.
