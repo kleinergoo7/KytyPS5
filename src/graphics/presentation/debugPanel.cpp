@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 
@@ -13,7 +14,8 @@ namespace Libs::Graphics {
 
 namespace DC = Common::DebugCounters;
 
-static bool s_enabled = false;
+// Written by the window thread (F2), read by the present thread — must be atomic.
+static std::atomic<bool> s_enabled {false};
 
 static std::chrono::steady_clock::time_point s_last = std::chrono::steady_clock::now();
 static bool s_have_prev = false;
@@ -26,20 +28,23 @@ static double s_gpu_waits_ps = 0.0;
 static double s_gpu_wait_ms_ps = 0.0;
 
 void DebugPanel::SetEnabled(bool enabled) {
-	s_enabled = enabled;
+	s_enabled.store(enabled, std::memory_order_release);
 	DC::SetEnabled(enabled);
 }
 
 bool DebugPanel::Enabled() noexcept {
-	return s_enabled;
+	return s_enabled.load(std::memory_order_acquire);
 }
 
 void DebugPanel::Toggle() noexcept {
-	SetEnabled(!s_enabled);
+	bool expected = s_enabled.load(std::memory_order_relaxed);
+	while (!s_enabled.compare_exchange_weak(expected, !expected, std::memory_order_acq_rel,
+	                                        std::memory_order_relaxed)) {}
+	DC::SetEnabled(!expected);
 }
 
 void DebugPanel::Draw(GraphicContext& /*graphics*/, const ImVec2& extent) {
-	if (!s_enabled) {
+	if (!s_enabled.load(std::memory_order_acquire)) {
 		return;
 	}
 	using DCtr = DC::Counter;
