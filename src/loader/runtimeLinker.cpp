@@ -14,6 +14,7 @@
 #include "common/stringUtils.h"
 #include "common/threads.h"
 #include "common/virtualMemory.h"
+#include "common/debugCounters.h"
 #include "graphics/host_gpu/pageManager.h"
 #include "kernel/memory.h"
 #include "kernel/pthread.h"
@@ -69,8 +70,9 @@ void SetProgName(const std::string& name);
 
 namespace Loader {
 
-Program::Program() = default;
+namespace DC = Common::DebugCounters;
 
+Program::Program() = default;
 Program::~Program() = default;
 
 static void FreeTlsBlock(ThreadLocalStorage::Block* block) {
@@ -877,6 +879,7 @@ static bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exc
 			                 info->exception_address);
 		}
 		if (Libs::LibKernel::Memory::HandleGpuFault(access, info->access_violation_vaddr)) {
+			DC::Add(DC::Counter::GpuFaults);
 			LiveTrace::Event(LiveTrace::FaultDone, access == GpuAccess::Write ? 1 : 0, info->access_violation_vaddr);
 			return true;
 		}

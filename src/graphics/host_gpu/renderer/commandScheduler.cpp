@@ -1,6 +1,7 @@
 #include "graphics/host_gpu/renderer/commandScheduler.h"
 
 #include "common/assert.h"
+#include "common/debugCounters.h"
 #include "live-switch.h"
 #include "mode-toggle.h"
 #include "common/logging/log.h"
@@ -45,8 +46,9 @@ extern volatile std::atomic_uint32_t kyty_local_speculate_mode; // KYTY_SPECULAT
 
 namespace Libs::Graphics {
 
-static thread_local CommandScheduler* g_deferred_callback_scheduler = nullptr;
-static thread_local CommandScheduler::Recorder* t_recorder           = nullptr;
+namespace DC = Common::DebugCounters;
+
+static thread_local CommandScheduler* g_deferred_callback_scheduler = nullptr;static thread_local CommandScheduler::Recorder* t_recorder           = nullptr;
 // (KYTY_SPECULATE unset or 0: no recorder on any thread. The global is read first, so mode 0's per-draw and per-bind
 // callers read no thread-local, as the base.)
 static CommandScheduler::Recorder* Rec() noexcept {
@@ -740,7 +742,7 @@ CommandScheduler::SubmitEntry CommandScheduler::ClosePrologue() {
 uint64_t CommandScheduler::Submit(SubmitInfo submit) {
 	if (Rec() != nullptr) throw RecorderRefusal {"Submit"};
 	EXIT_IF(m_command.IsInvalid());
-	m_command.EndRendering();
+	DC::Add(DC::Counter::QueueSubmits);	m_command.EndRendering();
 	if (m_epilogue_hook) m_epilogue_hook(m_command); // (KYTY_FEEDBACK_BATCH)
 	// A compute chain's pending barrier closes this buffer (left pending, the next Begin recorded it into a buffer
 	// that had not begun).

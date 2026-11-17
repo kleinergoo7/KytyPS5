@@ -1,6 +1,7 @@
 #include "graphics/guest_gpu/graphicsRun.h"
 
 #include "common/assert.h"
+#include "common/debugCounters.h"
 #include "common/emulatorConfig.h"
 #include "common/logging/log.h"
 #include "common/profiler.h"
@@ -62,8 +63,9 @@
 
 namespace Libs::Graphics {
 
-extern "C" {
-// 0: synchronous frame boundary. 1: the guest may prepare the following frame
+namespace DC = Common::DebugCounters;
+
+extern "C" {// 0: synchronous frame boundary. 1: the guest may prepare the following frame
 // while the renderer consumes the previous one; guest reads of GPU-written
 // memory are then served by asynchronous readbacks (BufferCache).
 [[gnu::used]] volatile std::atomic_uint32_t kyty_local_frame_pipeline_mode {1};
@@ -1307,6 +1309,7 @@ void GuestGpu::ThreadRun(void* data) {
 #endif
 
 	for (;;) {
+		DC::ScopedTimer busy_timer(DC::Counter::GpuThreadBusyNs);
 		if (ModeToggle::g_request.load(std::memory_order_relaxed) >= 0) apply_mode();
 		PageManager::FlushDeferredProtection(); // (before a guest command, an idle wait, another queue's turn)
 		Submission                   submission;

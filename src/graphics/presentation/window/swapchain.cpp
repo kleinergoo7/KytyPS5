@@ -1,5 +1,6 @@
 #include "common/assert.h"
 #include "common/common.h"
+#include "common/debugCounters.h"
 #include "common/emulatorConfig.h"
 #include "common/logging/log.h"
 #include "common/profiler.h"
@@ -60,8 +61,9 @@
 
 namespace Libs::Graphics {
 
-struct Presenter::Frame {
-	VulkanImage            image;
+namespace DC = Common::DebugCounters;
+
+struct Presenter::Frame {	VulkanImage            image;
 	vk::ImageView          view = nullptr; // `image` sampled (the dithered copy, Swapchain::RecordDitheredCopy)
 	FrameGen::FrameInputs  fg; // frame generation inputs (KYTY_FRAMEGEN)
 	uint64_t               present_tick = 0;
@@ -1989,6 +1991,7 @@ bool Presenter::GeneratesFrames() noexcept {
 
 void Presenter::Present(Frame& frame, bool reuse) {
 	KYTY_PROFILER_FUNCTION();
+	DC::ScopedTimer timer(DC::Counter::PresentNs);
 	m_impl->frames.ValidateForPresent(&frame, reuse);
 #if defined(__linux__)
 	// Linux frame generation: a new frame, and those NGX makes before it (PresentGenerated). A cleared frame, or an HDR
@@ -2121,8 +2124,8 @@ void Presenter::Present(Frame& frame, bool reuse) {
 		return;
 	}
 	LOGF("Vulkan presentation retry exhausted; dropping frame\n");
-	m_impl->frames.Release(&frame, reuse);
-}
+	DC::Add(DC::Counter::DroppedPresents);
+	m_impl->frames.Release(&frame, reuse);}
 
 void Presenter::RequestSwapchainRecreate() noexcept {
 	m_impl->recreate_requested.store(true, std::memory_order_release);

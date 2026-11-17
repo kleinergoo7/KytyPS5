@@ -1,6 +1,7 @@
 #include "graphics/host_gpu/renderer/masterSemaphore.h"
 
 #include "common/assert.h"
+#include "common/debugCounters.h"
 #include "graphics/host_gpu/graphicContext.h"
 #include "live-census.h"
 #include "live-counters.h"
@@ -14,6 +15,8 @@
 #include <cstdlib>
 
 namespace Libs::Graphics {
+
+namespace DC = Common::DebugCounters;
 
 MasterSemaphore::MasterSemaphore(GraphicContext& graphics): m_graphics(graphics) {
 	vk::SemaphoreTypeCreateInfo type_info {};
@@ -120,9 +123,10 @@ void MasterSemaphore::Wait(uint64_t tick) {
 		return;
 	}
 
+	DC::ScopedTimer timer(DC::Counter::GpuWaits, DC::Counter::GpuWaitNs);
+
 	LiveCensus::Scope census(LiveCensus::GpuWait, reinterpret_cast<uint64_t>(__builtin_return_address(0)),
-	                         reinterpret_cast<uint64_t>(__builtin_return_address(1)));
-	LiveCensus::WaitScope waiting(LiveCensus::WaitGpu);
+	                         reinterpret_cast<uint64_t>(__builtin_return_address(1)));	LiveCensus::WaitScope waiting(LiveCensus::WaitGpu);
 	vk::SemaphoreWaitInfo wait_info {};
 	wait_info.semaphoreCount = 1;
 	wait_info.pSemaphores    = &m_semaphore;

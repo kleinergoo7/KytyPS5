@@ -3,6 +3,7 @@
 
 #include "common/assert.h"
 #include "common/common.h"
+#include "common/debugCounters.h"
 #include "common/file.h"
 #include "common/logging/log.h"
 #include "common/profiler.h"
@@ -70,7 +71,7 @@
 
 namespace Libs::Graphics {
 
-extern "C" {
+namespace DC = Common::DebugCounters;extern "C" {
 // 0: a draw run reads no buffer range that any image overlaps; 1: sampled
 // images whose contents still come from the CPU may overlap its read ranges.
 volatile std::atomic_uint32_t kyty_local_draw_run_ranges_mode {1};
@@ -1481,7 +1482,7 @@ bool RenderExecutor::ExecutePreparedDraw(uint64_t submit_id, CommandBuffer& buff
 	if (!state.vs_input_info.stage || (state.ps_active && !state.ps_input_info.stage)) {
 		return true; // GetGraphicsPrograms dropped the draw (e.g. NGG/GS unsupported here)
 	}
-	LogDrawPhase(draw.name, "PrepareBindings");
+	DC::Add(DC::Counter::Draws);	LogDrawPhase(draw.name, "PrepareBindings");
 	NativePreparationScratch<GraphicsBindings> binding_storage(
 	    kyty_local_binding_scratch_mode.load(std::memory_order_relaxed) != 0);
 	auto& bindings = binding_storage.Get();

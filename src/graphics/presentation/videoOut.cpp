@@ -6,6 +6,7 @@
 #include "common/abi.h"
 #include "common/assert.h"
 #include "common/common.h"
+#include "common/debugCounters.h"
 #include "common/emulatorConfig.h"
 #include "common/logging/log.h"
 #include "common/profiler.h"
@@ -42,8 +43,9 @@ struct GraphicContext;
 
 namespace Libs::VideoOut {
 
-LIB_NAME("VideoOut", "VideoOut");
+namespace DC = Common::DebugCounters;
 
+LIB_NAME("VideoOut", "VideoOut");
 namespace EventQueue = LibKernel::EventQueue;
 
 constexpr int      VIDEO_OUT_EVENT_FLIP                                 = 0;
@@ -1045,11 +1047,12 @@ void VideoOutDriver::Impl::PresentThread(std::stop_token token) {
 		VblankEnd();
 
 		const auto frame_end = Common::Timer::QueryPerformanceCounter();
-		total_wait += static_cast<int64_t>(period) - static_cast<int64_t>(frame_end - frame_begin);
+		const int64_t next_wait = total_wait + static_cast<int64_t>(period) - static_cast<int64_t>(frame_end - frame_begin);
+		if (next_wait < -static_cast<int64_t>(period)) DC::Add(DC::Counter::LateVblanks);
+		total_wait = next_wait;
 		// A vblank late by more than a period (the thread held up) is not made up for with vblanks back to back: a burst of
 		// them flipped the frames queued meanwhile at once (presents bunched), where a console's vblanks keep their rate.
-		total_wait = std::max(total_wait, -static_cast<int64_t>(period));
-	}
+		total_wait = std::max(total_wait, -static_cast<int64_t>(period));	}
 }
 
 bool FlipQueue::Reserve(VideoOutConfig& cfg, int index, int64_t flip_arg, FlipRequestSource source,
@@ -1059,7 +1062,8 @@ bool FlipQueue::Reserve(VideoOutConfig& cfg, int index, int64_t flip_arg, FlipRe
 	if (m_requests.size() + m_cpu_requests.size() >= VIDEO_OUT_FLIP_QUEUE_CAPACITY) {
 		return false;
 	}
-	auto& pending = source == FlipRequestSource::GpuEop ? m_requests : m_cpu_requests;
+
+	DC::Add(DC::Counter::FlipsRequested);	auto& pending = source == FlipRequestSource::GpuEop ? m_requests : m_cpu_requests;
 
 	Request r {};
 	r.id         = m_next_request_id++;

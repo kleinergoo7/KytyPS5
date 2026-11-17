@@ -1,6 +1,7 @@
 #include "graphics/host_gpu/renderer/pipeline/pipelineCache.h"
 
 #include "common/assert.h"
+#include "common/debugCounters.h"
 #include "common/emulatorConfig.h"
 #include "common/file.h"
 #include "common/logging/log.h"
@@ -78,8 +79,9 @@ extern volatile std::atomic_uint32_t kyty_local_pipelines_evicting;
 
 namespace Libs::Graphics {
 
-namespace {
+namespace DC = Common::DebugCounters;
 
+namespace {
 vk::PolygonMode ResolvePolygonMode(const HW::ModeControl& mode, bool cull_front, bool cull_back) {
 	// CxPrimitiveSetup::PolygonMode disables both per-face modes when it is zero.
 	if (mode.poly_mode == 0) {
@@ -1902,6 +1904,7 @@ struct PipelineCache::ProgramCache {
 	// The shader module of a program's SPIR-V, on any thread (a compile worker makes a table mode program's).
 	static vk::ShaderModule CreateModule(vk::Device device, const ShaderRecompiler::CompileOptions& options,
 	                                     const std::vector<uint32_t>& spirv) {
+		DC::ScopedTimer timer(DC::Counter::ShadersCompiled, DC::Counter::ShaderCompileNs, DC::Peak::ShaderCompileNs);
 		const char* stage_name = StageName(options.stage);
 		if (!ValidateShaderSpirv(options.dump_label, options.shader_hash, spirv)) {
 			DumpShaderSpirv(stage_name, options.shader_hash, spirv);
@@ -4568,9 +4571,9 @@ PipelineCache::Pipeline* PipelineCache::CreateGraphicsPipelineImpl(
     bool primitive_restart_enable, const ShaderProgram& vertex_program,
     const ShaderProgram& pixel_program, bool native_bindings, bool async) {
 	KYTY_PROFILER_BLOCK("PipelineCache::CreatePipeline(Gfx)", profiler::colors::DeepOrangeA200);
+	DC::ScopedTimer timer(DC::Counter::PipelinesCreated, DC::Counter::PipelineCreateNs);
 
-	EXIT_IF(colors.size() > RENDER_COLOR_ATTACHMENTS_MAX);
-	EXIT_IF(!vertex_program);
+	EXIT_IF(colors.size() > RENDER_COLOR_ATTACHMENTS_MAX);	EXIT_IF(!vertex_program);
 	const bool ps_active = ps_input_info != nullptr;
 	EXIT_IF(ps_active && !pixel_program);
 	const auto color_count = static_cast<uint32_t>(colors.size());
@@ -4873,9 +4876,9 @@ PipelineCache::Pipeline&
 PipelineCache::CreateComputePipeline(const ShaderComputeInputInfo& input_info,
                                      const ShaderProgram&          compute_program) {
 	KYTY_PROFILER_BLOCK("PipelineCache::CreatePipeline(Compute)", profiler::colors::RedA100);
+	DC::ScopedTimer timer(DC::Counter::PipelinesCreated, DC::Counter::PipelineCreateNs);
 
 	EXIT_IF(!compute_program);
-
 	Common::LockGuard lock(m_mutex);
 	PromoteOptimized();
 

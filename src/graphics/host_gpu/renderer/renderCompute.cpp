@@ -1,6 +1,7 @@
 #include "common/assert.h"
 #include "live-trace-gpu.h"
 #include "common/common.h"
+#include "common/debugCounters.h"
 #include "common/emulatorConfig.h"
 #include "common/file.h"
 #include "common/logging/log.h"
@@ -61,7 +62,7 @@ extern volatile std::atomic<uint32_t> kyty_local_fill_clear_mode; // (textureCac
 
 namespace Libs::Graphics {
 
-// KYTY_DISPATCH_TIMING=<hash>[,<hash>...] (or ;): the GPU time of those programs' normal-path dispatches, from
+namespace DC = Common::DebugCounters;// KYTY_DISPATCH_TIMING=<hash>[,<hash>...] (or ;): the GPU time of those programs' normal-path dispatches, from
 // timestamps written around each (the interval also holds the tails of earlier work it overlaps), printed for a
 // dispatch of KYTY_DISPATCH_TIMING_MS (default 20) or more, with a summary per program every 5 s. (The culling chain's
 // GPU hangs, 10-13: a dispatch looping for seconds - its shader's per-lane loop runs a count read from memory - or one
@@ -1174,6 +1175,7 @@ void RenderExecutor::DispatchDirect(uint64_t submit_id, CommandBuffer& buffer,
 		ShaderWriteHazardBarrier(vk_buffer, vk::PipelineStageFlagBits::eComputeShader);
 	}
 	vk_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, BindPipelineHandle(pipeline));
+	DC::Add(DC::Counter::Dispatches);
 	if (indirect_args != 0) {
 		vk::BufferMemoryBarrier args_barrier {};
 		args_barrier.sType         = vk::StructureType::eBufferMemoryBarrier;
