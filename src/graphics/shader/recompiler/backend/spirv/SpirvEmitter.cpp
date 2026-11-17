@@ -1,6 +1,7 @@
 #include "graphics/shader/recompiler/backend/spirv/SpirvEmitter.h"
 
 #include "common/assert.h"
+#include "graphics/shader/recompiler/ShaderRecompiler.h"
 #include "graphics/shader/recompiler/backend/spirv/spirvEmitterInternal.h"
 #include "graphics/shader/recompiler/ir/ShaderIR.h"
 
@@ -74,7 +75,7 @@ void ValidateNativeProgram(const IR::Program& program) {
 			uses_gds |= kind == IR::ResourceKind::Gds;
 		}
 	}
-	if (uses_gds) {
+	if (uses_gds || Libs::Graphics::ShaderRecompiler::LoopGuardApplies(program.shader_hash)) {
 		Expect(Kind::Gds);
 	}
 	if (program.bindings.lod_stats_count != 0) {

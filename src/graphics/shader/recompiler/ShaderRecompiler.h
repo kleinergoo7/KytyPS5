@@ -45,6 +45,10 @@ struct CompileResult {
 // zero out of bounds and drops the stores. Set with the device, before any program compiles.
 void SetDeviceStorageBufferBounds(bool enabled);
 
+// KYTY_LOOP_GUARD diagnostic: per-invocation loop budget and whether it applies to this shader.
+[[nodiscard]] uint32_t LoopGuardBudget();
+[[nodiscard]] bool LoopGuardApplies(uint64_t shader_hash);
+
 [[nodiscard]] TranslateResult TranslateProgram(std::span<const uint32_t> code,
                                                const CompileOptions& options);
 [[nodiscard]] CompileResult CompileProgram(TranslateResult translated,

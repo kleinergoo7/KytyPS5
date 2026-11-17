@@ -1,6 +1,7 @@
 #include "graphics/shader/recompiler/ir/passes/BindingLayout.h"
 
 #include "common/assert.h"
+#include "graphics/shader/recompiler/ShaderRecompiler.h"
 #include "graphics/shader/recompiler/ir/ShaderIR.h"
 #include "graphics/shader/recompiler/ir/passes/SrtWalker.h"
 
@@ -434,7 +435,7 @@ void AllocateBindings(Program& program, uint32_t push_data_start_dword, bool ena
 		}
 		AddBinding(next, DescriptorBindingKind::Samplers, std::move(resources));
 	}
-	if (UsesGds(program)) {
+	if (UsesGds(program) || Libs::Graphics::ShaderRecompiler::LoopGuardApplies(program.shader_hash)) {
 		AddBinding(next, DescriptorBindingKind::Gds);
 	}
 	if (program.info.uses_dma) {

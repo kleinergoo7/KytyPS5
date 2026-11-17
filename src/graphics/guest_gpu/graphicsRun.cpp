@@ -21,6 +21,7 @@
 #include "graphics/presentation/videoOut.h"
 #include "graphics/presentation/window.h"
 #include "graphics/shader/shader.h"
+#include "graphics/shader/recompiler/ShaderRecompiler.h"
 #include "kernel/memory.h"
 #include "libs/agc.h"
 #include "libs/errno.h"
@@ -50,6 +51,7 @@
 #include <x86intrin.h>
 #include <cstdio>
 #include <cstring>
+#include <fmt/format.h>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -3748,7 +3750,37 @@ void CommandProcessor::TriggerEvent(uint32_t event_type, uint32_t event_index,
 	}
 }
 
+// KYTY_LOOP_GUARD: guarded shaders count exhausted invocations in the last GDS dword. The mapped
+// word is read without waiting for the GPU (a diagnostic) and reported when it changes.
+static void NoteLoopGuardHits(RenderContext& renderer) {
+	if (Libs::Graphics::ShaderRecompiler::LoopGuardBudget() == 0) {
+		return;
+	}
+	const char* list = std::getenv("KYTY_LOOP_GUARD_SHADERS");
+	if (list == nullptr || *list == '\0') {
+		return;
+	}
+	auto* gds = const_cast<Buffer*>(renderer.GetBufferCache().GetGdsBuffer());
+	gds->Invalidate(0, gds->Size());
+	const auto mapped = gds->Mapped();
+	if (mapped.size() < sizeof(uint32_t)) {
+		return;
+	}
+	static uint32_t reported = 0;
+	uint32_t       hits     = 0;
+	std::memcpy(&hits, mapped.data() + mapped.size() - sizeof(uint32_t), sizeof(hits));
+	if (hits != reported) {
+		reported = hits;
+		std::fprintf(stdout,
+		    "Loop guard: %u invocations of the guarded shaders exhausted the %u-iteration loop "
+		    "budget (KYTY_LOOP_GUARD)\n",
+		    hits, Libs::Graphics::ShaderRecompiler::LoopGuardBudget());
+		std::fflush(stdout);
+	}
+}
+
 void CommandProcessor::Flip() {
+	NoteLoopGuardHits(m_renderer);
 	LiveControl::Flip();
 	FrameCapture::OnFlip();
 	CheckBuffer();
@@ -3770,6 +3802,7 @@ void CommandProcessor::Flip() {
 }
 
 void CommandProcessor::Flip(void* dst_gpu_addr, uint32_t value) {
+	NoteLoopGuardHits(m_renderer);
 	CheckBuffer();
 
 	if (GraphicsRunDebugDumpEnabled()) {
@@ -3794,6 +3827,7 @@ void CommandProcessor::Flip(void* dst_gpu_addr, uint32_t value) {
 
 void CommandProcessor::FlipWithInterrupt(uint32_t eop_event_type, uint32_t cache_action,
                                          void* dst_gpu_addr, uint32_t value) {
+	NoteLoopGuardHits(m_renderer);
 	CheckBuffer();
 
 	if (GraphicsRunDebugDumpEnabled()) {

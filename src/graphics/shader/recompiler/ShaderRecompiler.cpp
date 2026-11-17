@@ -30,6 +30,7 @@
 #include <fmt/format.h>
 #include <map>
 #include <span>
+#include <string_view>
 #include <utility>
 
 namespace Libs::Graphics::ShaderRecompiler {
@@ -849,6 +850,41 @@ CompileResult CompileProgram(TranslateResult translated, const CompileOptions& o
 
 void RecycleSpirv(std::vector<uint32_t>&& spirv) {
 	Spirv::Builder::Recycle(std::move(spirv));
+}
+
+uint32_t LoopGuardBudget() {
+	static const uint32_t budget = [] {
+		const char* value = std::getenv("KYTY_LOOP_GUARD");
+		return value != nullptr ? static_cast<uint32_t>(std::strtoul(value, nullptr, 0)) : 0u;
+	}();
+	return budget;
+}
+
+bool LoopGuardApplies(uint64_t shader_hash) {
+	static const std::vector<uint64_t> shaders = [] {
+		std::vector<uint64_t> result;
+		const char* value = std::getenv("KYTY_LOOP_GUARD_SHADERS");
+		if (value == nullptr) {
+			return result;
+		}
+		std::string_view text(value);
+		while (!text.empty()) {
+			const auto comma = text.find(',');
+			const auto token = std::string(text.substr(0, comma));
+			if (!token.empty()) {
+				result.push_back(std::strtoull(token.c_str(), nullptr, 16));
+			}
+			if (comma == std::string_view::npos) {
+				break;
+			}
+			text.remove_prefix(comma + 1);
+		}
+		return result;
+	}();
+	if (LoopGuardBudget() == 0 || shaders.empty()) {
+		return false;
+	}
+	return std::ranges::find(shaders, shader_hash) != shaders.end();
 }
 
 } // namespace Libs::Graphics::ShaderRecompiler
