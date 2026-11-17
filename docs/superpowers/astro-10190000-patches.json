@@ -1,0 +1,28 @@
+{
+  "id": "PPSA21567",
+  "version": "01.019.000",
+  "process": "eboot.bin",
+  "mods": [
+    {
+      "name": "non_tiled_lighting",
+      "enabled": true,
+      "memory": [
+        { "offset": "73b4522", "off": "0f84f1080000", "on": "e9f208000090" }
+      ]
+    },
+    {
+      "name": "gi_probes_off",
+      "enabled": true,
+      "memory": [
+        { "offset": "70ce313", "off": "0fb682a0070000", "on": "b8000000009090" }
+      ]
+    },
+    {
+      "name": "fixed_1080p",
+      "enabled": true,
+      "memory": [
+        { "offset": "73e5ab1", "off": "44037308", "on": "4531f690" }
+      ]
+    }
+  ]
+}
