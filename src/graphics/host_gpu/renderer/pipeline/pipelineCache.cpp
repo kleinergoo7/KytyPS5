@@ -6659,6 +6659,16 @@ PipelineCache::GraphicsPrograms PipelineCache::GetGraphicsPrograms(
 		vertex_params[0] = PrepareProgram(vertex_regs, context, user_config, vertex_info[0]);
 	}
 	const bool mesh_active = vertex_info[0].logical_stage == ShaderType::Mesh;
+	if (mesh_active && !m_graphics.mesh_shader_enabled) {
+		// No VK_EXT_mesh_shader (RDNA1/Polaris and older): skip the NGG draw instead of aborting.
+		// An empty GraphicsPrograms makes the caller drop the draw (renderDraw's !vertex[0] check).
+		static std::atomic_bool mesh_unsupported_warned {false};
+		if (!mesh_unsupported_warned.exchange(true, std::memory_order_relaxed)) {
+			std::printf("Warning: NGG/GS draw skipped: this GPU has no VK_EXT_mesh_shader\n");
+			std::fflush(stdout);
+		}
+		return {};
+	}
 	if (mesh_active) {
 		FinishMeshStage(m_graphics, vertex_info[0]);
 	}
@@ -6750,6 +6760,9 @@ PipelineCache::SpeculativeResult PipelineCache::PrepareGraphicsProgramsSpeculati
 		return SpeculativeResult::ReadFailed;
 	}
 	if (vertex_info.logical_stage == ShaderType::Mesh) {
+		if (!m_graphics.mesh_shader_enabled) {
+			return SpeculativeResult::Ineligible; // serial path drops the draw (no mesh support)
+		}
 		FinishMeshStage(m_graphics, vertex_info);
 	}
 	Common::PrepPhases::Mark(Common::PrepPhases::Phase::VsProgram);
