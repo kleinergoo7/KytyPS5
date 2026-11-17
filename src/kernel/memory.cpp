@@ -3531,7 +3531,7 @@ int KYTY_SYSV_ABI KernelMunmap(uint64_t vaddr, size_t len) {
 // suicide kills break the game's physics at any size.) KYTY_DIRECT_MEMORY_MB=<n>: n MiB (0: all of it, 12.5 GiB).
 static uint64_t ReportedDirectMemorySize() {
 	static const uint64_t cap = [] {
-		constexpr uint64_t Base = uint64_t {16} << 30u;
+		constexpr uint64_t Base = uint64_t {16} << 30u; // 16 GiB: 12 GiB run hit a GPU write fault at 0x300000020
 		const char*        value = std::getenv("KYTY_DIRECT_MEMORY_MB");
 		if (value == nullptr || *value == '\0') return Libs::Graphics::DemonsSouls::IsSupportedGame() ? Base : ~uint64_t {0};
 		const uint64_t mib = std::strtoull(value, nullptr, 10);

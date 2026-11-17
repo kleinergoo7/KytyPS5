@@ -1441,14 +1441,18 @@ void CreatePipelineInternal(
 		LOGF("PipelineTrace: vkCreateGraphicsPipelines done result=%s pipeline=%p\n",
 		     vk::to_string(result).c_str(), static_cast<void*>(pipeline.pipeline));
 	}
-	const uint64_t pixel_hash = ps_active ? ps_input_info->stage.program->shader_hash : 0;
+	const uint64_t pixel_hash =
+	    (ps_active && ps_input_info != nullptr && ps_input_info->stage.program != nullptr)
+	        ? ps_input_info->stage.program->shader_hash
+	        : 0;
+	const uint64_t vertex_hash = vs_input_info.stage.program != nullptr ? vs_input_info.stage.program->shader_hash : 0;
 	if (!ClaimedElsewhere(graphics, result) && (result != vk::Result::eSuccess || pipeline.pipeline == nullptr) &&
-	    !PipelineRefused(graphics, result, "graphics", vs_input_info.stage.program->shader_hash, pixel_hash)) {
+	    !PipelineRefused(graphics, result, "graphics", vertex_hash, pixel_hash)) {
 		pipeline.pipeline = nullptr;
 		if (build == PipelineBuild::Optimize) {
 			OptimizedBuildRefused();
 		} else if (pipeline.unoptimized || MadeUnoptimized(pipeline, pipeline_info, "graphics",
-		                                                   vs_input_info.stage.program->shader_hash, pixel_hash,
+		                                                   vertex_hash, pixel_hash,
 		                                                   create_graphics) != vk::Result::eSuccess) {
 			// (The fragment stage is the last, when there is one.)
 			if (!ps_active && empty_frag_stage_info.module == nullptr) pipeline_info.stageCount = ++shader_stage_count;

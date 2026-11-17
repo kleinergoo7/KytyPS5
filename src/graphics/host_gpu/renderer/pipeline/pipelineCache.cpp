@@ -4675,7 +4675,7 @@ PipelineCache::Pipeline* PipelineCache::CreateGraphicsPipelineImpl(
 		static_params.blend_enable[i]         = bc.enable;
 		static_params.blend_bypass[i]         = rt.info.blend_bypass;
 	}
-	if (vs_input_info.stage.program->stage != ShaderType::Mesh) {
+	if (vs_input_info.stage.program != nullptr && vs_input_info.stage.program->stage != ShaderType::Mesh) {
 		EXIT_IF(vs_input_info.buffers_num < 0 ||
 		        vs_input_info.buffers_num > ShaderVertexInputInfo::RES_MAX ||
 		        vs_input_info.resources_num < 0 ||

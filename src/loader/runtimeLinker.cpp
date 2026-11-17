@@ -808,7 +808,7 @@ static std::string DescribeGuestAddress(uint64_t vaddr) {
 }
 
 std::string DescribeGuestAddressForDiagnostics(uint64_t vaddr) {
-	if (g_faulting_linker == nullptr || vaddr == 0 || g_faulting_linker->FindProgramByAddr(vaddr) == nullptr) return {};
+	if (g_faulting_linker == nullptr || vaddr == 0 || vaddr < 0x1000 || g_faulting_linker->FindProgramByAddr(vaddr) == nullptr) return {};
 	return DescribeGuestAddress(vaddr);
 }
 
@@ -1004,11 +1004,15 @@ static bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exc
 #endif
 		std::fflush(stdout);
 	}
-	std::printf("Unhandled host exception: type=%u code=%u pc=0x%016" PRIx64 " access=%u address=0x%016" PRIx64 "\n",
+	std::printf("Unhandled host exception: type=%u code=%u pc=0x%016" PRIx64 " (%s)"
+	            " access=%u address=0x%016" PRIx64 " (%s) code=%s\n",
 	            static_cast<unsigned>(info->type), info->native_code, info->exception_address,
-	            static_cast<unsigned>(info->access_violation_type), info->access_violation_vaddr);
+	            DescribeGuestAddress(info->exception_address).c_str(),
+	            static_cast<unsigned>(info->access_violation_type), info->access_violation_vaddr,
+	            DescribeGuestAddress(info->access_violation_vaddr).c_str(),
+	            DescribeGuestCode(info->exception_address).c_str());
 	std::fflush(stdout);
-	std::_Exit(1);
+	Common::DbgExit(1);
 }
 
 static void EncodeId64(uint16_t in_id, std::string* out_id) {
