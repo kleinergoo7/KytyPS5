@@ -52,3 +52,23 @@ translated at once, 2.1 s record_wait), possibly made worse by VRAM pressure (6.
 VERDICT: Astro Bot reaches a rendered splash but NOT gameplay. The GPU hang is a secondary
 symptom; the primary blocker is the splash→game transition (shader/pipeline stall), and the
 loop-guard workaround is cache-fragile.
+
+## UPDATE 2 (2026-11-19) — CPU stall watcher result
+
+Built a CPU-side stall watcher (commit df0389ac): on a >2s frame it dumps the wait breakdown +
+DeviceFault breadcrumbs. Enabled with `KYTY_CPU_STALL_WATCH=1 KYTY_CPU_STALL_MS=2000`.
+
+Result (/tmp/opencode/cpu-stall-190178.txt, 100s run with loop guard):
+- First slow frame 2292 ms: gpu 237, download 237, compile 0, record 42 ms — ~2000 ms UNACCOUNTED.
+- Immediately following frames: `record_wait ≈ 2115 ms` (SLOW Frame 2368 ms) — the render thread
+  blocks on the RECORDING WORKER for ~2.1 s.
+- Breadcrumbs show normal submissions up to tick 329039; no obvious single culprit pipeline.
+
+Interpretation: at the splash->game transition the render thread stalls ~2.1 s waiting for the
+recording worker (Vulkan command recording / pipeline creation), repeated across several frames.
+This is a CPU-side recording stall, NOT a GPU-timeline stall. The upstream 3500-line watchdog is
+GPU-timeline-focused and would NOT catch this; the small watcher does.
+
+State: Astro Bot still never leaves the splash. Root blocker narrowed to a repeated ~2.1 s
+recording-worker stall at the transition. Full diagnosis would need to instrument WHERE the
+recording worker spends that 2.1 s (likely pipeline compilation / shader translation on the worker).
