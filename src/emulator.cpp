@@ -215,6 +215,11 @@ void Run(const RunOptions& options) {
 
 	LoadElf(options.elf);
 
+	if (std::getenv("KYTY_DUMP_ELF") != nullptr) {
+		Common::Singleton<Loader::RuntimeLinker>::Instance()->SaveMainProgram(std::getenv("KYTY_DUMP_ELF"));
+		std::quick_exit(0);
+	}
+
 	Execute(options.game_patch);
 }
 
