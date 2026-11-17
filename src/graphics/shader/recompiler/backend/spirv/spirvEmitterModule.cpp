@@ -1,7 +1,7 @@
 #include "graphics/shader/recompiler/backend/spirv/spirvEmitterInternal.h"
 
 #include <algorithm>
-
+#include <cstdlib>
 namespace Libs::Graphics::ShaderRecompiler::Spirv::Emitter {
 
 const IR::DescriptorBinding* DescriptorBinding(const EmitterState&       state,
@@ -393,7 +393,24 @@ static bool MrtUsesUintOutput(const EmitterState& state, uint32_t index) {
 }
 
 void AllocateInputVariables(EmitterState& state) {
-	if (state.lod_stats_subgroup) {
+	bool needs_lod_helper = state.lod_stats_subgroup;
+	static const bool env_on = [] {
+		const char* value = std::getenv("KYTY_PS_APPEND_LIVE_ELECTION");
+		return value != nullptr && value[0] != '\0' && std::strtol(value, nullptr, 10) != 0;
+	}();
+	if (env_on && state.stage == ShaderType::Pixel && !needs_lod_helper) {
+		for (const auto* block: state.program.blocks) {
+			for (const auto& inst: *block) {
+				if (inst.GetOpcode() == IR::ValueOpcode::DataAppend ||
+				    inst.GetOpcode() == IR::ValueOpcode::DataConsume) {
+					needs_lod_helper = true;
+					break;
+				}
+			}
+			if (needs_lod_helper) break;
+		}
+	}
+	if (needs_lod_helper) {
 		state.lod_helper_variable = state.builder.AllocateId();
 		state.interface_variables.push_back(state.lod_helper_variable);
 	}
