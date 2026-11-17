@@ -117,3 +117,18 @@ With syncshaders:
 CONCLUSION: `RADV_DEBUG=syncshaders` is the key. The GDS write-confirmation hang on the RX 580
 is caused by shader/command-stream asynchrony; serializing shader sync avoids it. This is a
 driver-level workaround the user can use to reach gameplay — no emulator code change needed.
+
+## CORRECTION (2026-11-17 20:40) — earlier "breakthrough" was a false positive
+
+The "logo gone" frame (astro-sync.png) was a transient during the logo's own fade animation, NOT
+the game leaving the splash. A longer `RADV_DEBUG=syncshaders` run with screenshots at 70 s and
+130 s (astro-g1.png, astro-g2.png) shows the Team Asobi logo STILL PRESENT at both times, then
+device loss before 190 s (exit 65). So syncshaders reduces the submit stalls (2050ms -> 240ms)
+but the game STILL never advances past the splash.
+
+Corrected conclusion: RADV syncshaders mitigates the GPU hang but does NOT get Astro Bot into
+gameplay. The splash->game transition blocker remains unresolved. The logo-only frames are part
+of the splash's looping animation.
+
+Lesson: do not conclude "left the splash" from a single screenshot of a fade frame — sample
+multiple times and confirm the scene actually changes (menu/gameplay appears).
