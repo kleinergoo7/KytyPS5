@@ -33,6 +33,7 @@
 #include "local-platform.h"
 #include "mode-toggle.h"
 #include "perf-overlay.h"
+#include "cpuStallWatch.h"
 #include "screenshot.h"
 #include "live-switch.h"
 #include "slow-log.h"
@@ -145,9 +146,13 @@ inline void Flip() {
 			    cycles != 0 && last_cycles != 0 && since > 1000.0)
 				std::printf(" cpu=%.1f", static_cast<double>(cycles - last_cycles) * since /
 				                             static_cast<double>(__rdtsc() - first_tsc));
-			for (size_t i = 0; i < LiveCensus::Waits; ++i)
-				if (const auto ns = LiveCensus::g_waits_ns[i] - last_waits[i]; ns != 0)
-					std::printf(" %s=%.1f", waits[i], static_cast<double>(ns) / 1e6);
+			int64_t wait_deltas[LiveCensus::Waits] {};
+			for (size_t i = 0; i < LiveCensus::Waits; ++i) {
+				wait_deltas[i] = LiveCensus::g_waits_ns[i] - last_waits[i];
+				if (wait_deltas[i] != 0)
+					std::printf(" %s=%.1f", waits[i], static_cast<double>(wait_deltas[i]) / 1e6);
+			}
+			CpuStallWatch::NoteFrame(ms, wait_deltas, LiveCensus::Waits);
 			if (const auto ns = LiveCensus::g_upload_wait_ns.load(std::memory_order_relaxed) - last_upload_wait; ns != 0)
 				std::printf(" upload_wait=%.1f", static_cast<double>(ns) / 1e6);
 			for (size_t i = 0; i < counted.size(); ++i) {
