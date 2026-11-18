@@ -56,6 +56,9 @@ void                  Mount(const std::filesystem::path& folder, const std::stri
 void                  Umount(const std::string& folder_or_point);
 // Returns an empty path when the guest path has no mounted filesystem.
 std::filesystem::path GetRealFilename(const std::string& mounted_file_name);
+// Test-only: number of case-insensitive host walks performed by ResolvePath.
+uint64_t ResolvePathIgnoringCaseCount();
+void     ResetResolvePathIgnoringCaseCount();
 // Returns whether d is an open file, directory or device descriptor.
 bool                  IsOpenDescriptor(int d);
 
