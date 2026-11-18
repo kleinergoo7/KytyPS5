@@ -1,5 +1,6 @@
 #include "kernel/fileSystem.h"
 
+#include "common/amprPack.h"
 #include "common/archive.h"
 #include "common/assert.h"
 #include "common/common.h"
@@ -47,6 +48,7 @@ public:
 		std::filesystem::path dir;
 		std::string           point;
 		std::shared_ptr<Common::ArchiveReader> archive;
+		std::shared_ptr<Common::AmprPack>      ampr;
 	};
 
 	MountPoints() { EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread()); }
@@ -269,6 +271,18 @@ void MountPoints::Mount(const std::filesystem::path& folder, const std::string& 
 	p.point = point_str;
 	p.archive = Common::OpenArchive(folder);
 
+	// Load the AMPR index once per mount so guest reads can reach packed files. A .zar
+	// mount (an archive path) has no index beside it and stays on the existing path.
+	if (!Common::IsArchivePath(folder)) {
+		std::error_code ec;
+		if (std::filesystem::is_regular_file(folder / "ampr_zstd.index", ec)) {
+			auto ampr = std::make_shared<Common::AmprPack>();
+			if (ampr->Init(folder)) {
+				p.ampr = std::move(ampr);
+			}
+		}
+	}
+
 	m_mount_pairs.push_back(std::move(p));
 }
 
@@ -370,7 +384,17 @@ std::filesystem::path MountPoints::ResolvePath(const std::string& mounted_name) 
 		}
 		return p.dir / native_rel_path;
 #else
-		return ResolvePathIgnoringCase(p.dir / native_rel_path);
+		auto resolved = ResolvePathIgnoringCase(p.dir / native_rel_path);
+		if (p.ampr) {
+			std::error_code ec;
+			if (!std::filesystem::exists(resolved, ec)) {
+				Common::AmprPack::FileInfo info;
+				if (p.ampr->Lookup(rel_path, info)) {
+					return Common::MakeArchivePath(p.dir / "__ampr__.amprz", native_rel_path);
+				}
+			}
+		}
+		return resolved;
 #endif
 	}
 

@@ -1,7 +1,14 @@
 #include "common/amprPack.h"
 #include "common/archive.h"
 #include "common/common.h"
+#include "common/emulatorConfig.h"
 #include "common/file.h"
+#include "common/logging/log.h"
+#include "common/stringUtils.h"
+#include "common/subsystems.h"
+#include "common/threads.h"
+#include "kernel/fileSystem.h"
+#include "libs/errno.h"
 
 #include <algorithm>
 #include <chrono>
@@ -269,6 +276,76 @@ int main() {
     Check(foundVirtualFont, "virtual directory listing includes the font");
     Check(!Common::File::IsDirectoryExisting(Common::MakeArchivePath(archive, "data/common/no_such_dir")),
           "non-existent virtual directory is not detected");
+  }
+
+  // Task 3: mount-time index load and the ResolvePath hook. These go through the real
+  // LibKernel::FileSystem API, so the test target links the full emulator (see CMakeLists.txt).
+  {
+    namespace FS = Libs::LibKernel::FileSystem;
+
+    Common::InitializeThreads();
+    Common::Subsystems subsystems;
+    subsystems.Initialize<Config::Lifecycle>();
+    Config::ConfigOptions options;
+    options.printf_direction = Config::LogDirection::Silent;
+    Config::Load(options);
+    subsystems.Initialize<Log::Lifecycle>();
+    FS::Initialize();
+
+    constexpr const char* kFontGuest = "/app0/data/common/font/FuturaStd-Bold.otf";
+
+    // Real dump: the loose font is absent, so the guest path must resolve into the
+    // synthetic .amprz archive and still stat as the 28,280-byte font.
+    FS::Mount(root, "/app0");
+    const auto packedResolved = FS::GetRealFilename(kFontGuest);
+    const auto packedStr = Common::PathToGenericString(packedResolved);
+    Check(packedStr.find("!/") != std::string::npos, "packed guest path resolves to an archive path");
+    Check(packedStr.find("__ampr__.amprz") != std::string::npos, "resolved path uses the amprz backend");
+    Check(Common::File::Size(packedResolved) == 28280, "resolved virtual font size is 28280");
+    Check(FS::GetRealFilename("/unmounted/font.otf").empty(), "unmounted guest path stays empty");
+
+    // Mutating operations on the virtual path are rejected and create no host file.
+    Check(FS::KernelOpen(kFontGuest, 0x0200u | 0x1u, 0) == Libs::LibKernel::KERNEL_ERROR_EROFS,
+          "O_CREAT|O_WRONLY on virtual path rejected");
+    Check(FS::KernelTruncate(kFontGuest, 0) == Libs::LibKernel::KERNEL_ERROR_EROFS,
+          "truncate on virtual path rejected");
+    Check(FS::KernelUnlink(kFontGuest) == Libs::LibKernel::KERNEL_ERROR_EROFS,
+          "unlink on virtual path rejected");
+    Check(!std::filesystem::exists(root / "data/common/font/FuturaStd-Bold.otf"),
+          "no host file created by mutating ops");
+    FS::Umount("/app0");
+
+    // Review Focus 1: no ampr_zstd.index must mean no behavior change. A loose folder
+    // with the same font resolves to a plain host path (no "!/") and still opens.
+    TempDirectory loose;
+    const auto looseFont = loose.Path() / "data/common/font/FuturaStd-Bold.otf";
+    Check(std::filesystem::create_directories(looseFont.parent_path()), "create loose font directory");
+    {
+      std::ofstream out(looseFont, std::ios::binary);
+      out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    }
+    FS::Mount(loose.Path(), "/app0");
+    const auto looseResolved = FS::GetRealFilename(kFontGuest);
+    const auto looseStr = Common::PathToGenericString(looseResolved);
+    Check(looseStr.find("!/") == std::string::npos, "loose folder resolves to a normal path");
+    Check(looseResolved == looseFont, "loose font resolves to the real host file");
+    Check(Common::File::Size(looseResolved) == 28280, "loose font still opens");
+    FS::Umount("/app0");
+
+    // The working old ROM is untouched: a .zar mount resolves to its own archive path
+    // (never the synthetic .amprz one) and the font opens from it.
+    const std::filesystem::path oldZar = "/mnt/hdd/roms/ps5/ASTRO_BOT.zar";
+    if (std::filesystem::is_regular_file(oldZar)) {
+      FS::Mount(Common::MakeArchivePath(oldZar), "/app0");
+      const auto zarResolved = FS::GetRealFilename(kFontGuest);
+      const auto zarStr = Common::PathToGenericString(zarResolved);
+      Check(zarStr.find("__ampr__.amprz") == std::string::npos, "zar mount does not use the amprz backend");
+      Check(Common::File::Size(zarResolved) == 28280, "old zar font still opens");
+      FS::Umount("/app0");
+    }
+
+    FS::Shutdown();
+    subsystems.Destroy();
   }
 
   std::printf("AmprPackTests: all cases passed\n");
