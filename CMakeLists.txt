@@ -668,6 +668,12 @@ add_executable(archive_file_tests EXCLUDE_FROM_ALL
 target_link_libraries(archive_file_tests common ZArchive::zarchive)
 target_include_directories(archive_file_tests PRIVATE ${inc_headers})
 
+add_executable(ampr_pack_tests EXCLUDE_FROM_ALL
+	"${KYTY_TESTS_DIR}/AmprPackTests.cpp"
+)
+target_link_libraries(ampr_pack_tests common)
+target_include_directories(ampr_pack_tests PRIVATE ${inc_headers})
+
 add_executable(trophy_system_tests EXCLUDE_FROM_ALL
 	"${KYTY_TESTS_DIR}/TrophySystemTests.cpp"
 )
