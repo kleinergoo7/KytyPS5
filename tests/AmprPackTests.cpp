@@ -302,6 +302,12 @@ int main() {
     Check(packedStr.find("!/") != std::string::npos, "packed guest path resolves to an archive path");
     Check(packedStr.find("__ampr__.amprz") != std::string::npos, "resolved path uses the amprz backend");
     Check(Common::File::Size(packedResolved) == 28280, "resolved virtual font size is 28280");
+
+    // Case-folded guest paths must resolve to a readable virtual path too.
+    const auto packedFolded = FS::GetRealFilename("/app0/DATA/COMMON/FONT/FUTURASTD-BOLD.OTF");
+    const auto packedFoldedStr = Common::PathToGenericString(packedFolded);
+    Check(packedFoldedStr.find("!/") != std::string::npos, "mixed-case guest path resolves to a virtual path");
+    Check(Common::File::Size(packedFolded) == 28280, "mixed-case guest path resolves to a readable 28280-byte font");
     Check(FS::GetRealFilename("/unmounted/font.otf").empty(), "unmounted guest path stays empty");
 
     // Mutating operations on the virtual path are rejected and create no host file.
@@ -332,17 +338,28 @@ int main() {
     Check(Common::File::Size(looseResolved) == 28280, "loose font still opens");
     FS::Umount("/app0");
 
-    // The working old ROM is untouched: a .zar mount resolves to its own archive path
-    // (never the synthetic .amprz one) and the font opens from it.
-    const std::filesystem::path oldZar = "/mnt/hdd/roms/ps5/ASTRO_BOT.zar";
-    if (std::filesystem::is_regular_file(oldZar)) {
-      FS::Mount(Common::MakeArchivePath(oldZar), "/app0");
-      const auto zarResolved = FS::GetRealFilename(kFontGuest);
-      const auto zarStr = Common::PathToGenericString(zarResolved);
-      Check(zarStr.find("__ampr__.amprz") == std::string::npos, "zar mount does not use the amprz backend");
-      Check(Common::File::Size(zarResolved) == 28280, "old zar font still opens");
-      FS::Umount("/app0");
+    // The working old-ROM path is untouched: build a small .zar containing the font and mount it
+    // unconditionally. The guest path must resolve to that archive's own member path — never the
+    // synthetic .amprz one. No dependency on /mnt/hdd, so this guard runs on any machine.
+    TempDirectory zarTemp;
+    const auto zarSrc = zarTemp.Path() / "src";
+    const auto zarFont = zarSrc / "data/common/font/FuturaStd-Bold.otf";
+    Check(std::filesystem::create_directories(zarFont.parent_path()), "create .zar fixture source dir");
+    {
+      std::ofstream out(zarFont, std::ios::binary);
+      out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     }
+    const auto fixtureZar = zarTemp.Path() / "ASTRO_BOT.zar";
+    Check(Common::PackArchive(zarSrc, fixtureZar, [](uint64_t, uint64_t) { return true; }),
+          "pack .zar fixture containing the font");
+    const auto expectedZarPath = Common::MakeArchivePath(fixtureZar, "data/common/font/FuturaStd-Bold.otf");
+    FS::Mount(Common::MakeArchivePath(fixtureZar), "/app0");
+    const auto zarResolved = FS::GetRealFilename(kFontGuest);
+    const auto zarStr = Common::PathToGenericString(zarResolved);
+    Check(zarStr.find("__ampr__.amprz") == std::string::npos, "zar mount does not use the amprz backend");
+    Check(zarResolved == expectedZarPath, "zar mount resolves to its unchanged member path");
+    Check(Common::File::Size(zarResolved) == 28280, "zar font still opens at 28280 bytes");
+    FS::Umount("/app0");
 
     FS::Shutdown();
     subsystems.Destroy();
