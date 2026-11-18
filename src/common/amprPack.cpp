@@ -5,6 +5,7 @@
 #if defined(__linux__) || defined(__APPLE__)
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -90,6 +91,8 @@ std::string DirectoryPrefix(std::string_view member) {
 	return prefix;
 }
 
+std::atomic<uint32_t> g_initCount {0};
+
 bool ReadExact(int fd, void* buffer, size_t size, uint64_t offset) {
 	auto* bytes = static_cast<uint8_t*>(buffer);
 	while (size != 0) {
@@ -147,6 +150,7 @@ void AmprPack::Reset() {
 }
 
 bool AmprPack::Init(const std::filesystem::path& gameRoot) {
+	g_initCount.fetch_add(1, std::memory_order_relaxed);
 	Reset();
 	const auto indexPath = gameRoot / "ampr_zstd.index";
 	m_indexFd = ::open(indexPath.c_str(), O_RDONLY | O_CLOEXEC);
@@ -237,6 +241,14 @@ bool AmprPack::Init(const std::filesystem::path& gameRoot) {
 	}
 	m_volumeFds.assign(m_volumeCount, -1);
 	return true;
+}
+
+uint32_t AmprPack::InitCount() {
+	return g_initCount.load(std::memory_order_relaxed);
+}
+
+void AmprPack::ResetInitCount() {
+	g_initCount.store(0, std::memory_order_relaxed);
 }
 
 bool AmprPack::Fill(const uint8_t* record, FileInfo& out) const {
@@ -421,6 +433,12 @@ AmprPack::~AmprPack() = default;
 bool AmprPack::Init(const std::filesystem::path&) {
 	return false;
 }
+
+uint32_t AmprPack::InitCount() {
+	return 0;
+}
+
+void AmprPack::ResetInitCount() {}
 
 bool AmprPack::Lookup(std::string_view, FileInfo&) const {
 	return false;

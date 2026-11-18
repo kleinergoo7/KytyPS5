@@ -34,6 +34,10 @@ public:
 
 	bool Init(const std::filesystem::path& gameRoot);
 
+	// Test-only instrumentation: counts Init() calls so tests can prove the index is parsed once per root.
+	[[nodiscard]] static uint32_t InitCount();
+	static void ResetInitCount();
+
 	[[nodiscard]] bool Lookup(std::string_view guestPath, FileInfo& out) const;
 	[[nodiscard]] bool Exists(std::string_view guestPath) const;
 

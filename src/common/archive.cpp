@@ -89,11 +89,30 @@ std::shared_ptr<ArchiveReader> OpenZArchive(const std::filesystem::path& path) {
 	return reader ? std::make_shared<ZArchiveReaderBackend>(std::move(reader)) : nullptr;
 }
 
+// Keep one AmprPack per game root alive for the whole process. OpenArchive's reader cache is
+// weak_ptr-only; without a strong owner, every transient stat/open re-parses the 22 MB index.
+// Holding the mutex across Init also collapses concurrent guest threads into a single parse.
+std::mutex                                                  g_amprPacksMutex;
+std::unordered_map<std::filesystem::path, std::shared_ptr<AmprPack>> g_amprPacks;
+
+std::shared_ptr<AmprPack> GetAmprPack(const std::filesystem::path& root) {
+	std::lock_guard lock(g_amprPacksMutex);
+	if (auto it = g_amprPacks.find(root); it != g_amprPacks.end()) {
+		return it->second;
+	}
+	auto pack = std::make_shared<AmprPack>();
+	if (!pack->Init(root)) {
+		return nullptr;
+	}
+	g_amprPacks.emplace(root, pack);
+	return pack;
+}
+
 // Read-only view of an AMPR zstd index. The synthetic "__ampr__.amprz" file never exists on disk;
 // its parent directory is the game root that holds ampr_zstd.index and the pak volumes.
 class AmprPackReaderBackend final: public ArchiveReader {
 public:
-	explicit AmprPackReaderBackend(std::unique_ptr<AmprPack> pack): m_pack(std::move(pack)) {}
+	explicit AmprPackReaderBackend(std::shared_ptr<AmprPack> pack): m_pack(std::move(pack)) {}
 
 	std::optional<Entry> Find(std::string_view member) override {
 		AmprPack::FileInfo info {};
@@ -129,14 +148,14 @@ public:
 	}
 
 private:
-	std::unique_ptr<AmprPack>                         m_pack;
+	std::shared_ptr<AmprPack>                         m_pack;
 	std::mutex                                        m_mutex;
 	std::unordered_map<uint64_t, AmprPack::FileInfo> m_files;
 };
 
 std::shared_ptr<ArchiveReader> OpenAmprPack(const std::filesystem::path& path) {
-	auto pack = std::make_unique<AmprPack>();
-	return pack->Init(path.parent_path()) ? std::make_shared<AmprPackReaderBackend>(std::move(pack)) : nullptr;
+	auto pack = GetAmprPack(path.parent_path());
+	return pack ? std::make_shared<AmprPackReaderBackend>(std::move(pack)) : nullptr;
 }
 
 struct ArchiveFormat {

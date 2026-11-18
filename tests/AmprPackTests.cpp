@@ -386,6 +386,28 @@ int main() {
     subsystems.Destroy();
   }
 
+  // Task 6: repeated opens of one root must reuse a single AmprPack. OpenArchive keeps readers as
+  // weak_ptr only, so without a strong owner every stat re-runs the 22 MB parse + string sort.
+  // A fresh root keeps this independent of earlier opens of the real dump in this process.
+  {
+    TempDirectory cacheTemp;
+    const auto cacheRoot = cacheTemp.Path() / "root";
+    Check(std::filesystem::create_directories(cacheRoot), "create fresh ampr root");
+    Check(std::filesystem::copy_file(indexPath, cacheRoot / "ampr_zstd.index"),
+          "copy index into fresh ampr root");
+
+    const auto cacheArchive = cacheRoot / "__ampr__.amprz";
+    const auto firstMember = Common::MakeArchivePath(cacheArchive, "data/common/font/FuturaStd-Bold.otf");
+    const auto secondMember = Common::MakeArchivePath(
+        cacheArchive, "data/prein/bg/gfx/big_tornado_scifi_parts_a_05_1v.jxm");
+
+    Common::AmprPack::ResetInitCount();
+    Check(Common::File::IsFileExisting(firstMember), "first fresh-root member resolves");
+    Check(Common::File::IsFileExisting(secondMember), "second fresh-root member resolves");
+    Check(Common::AmprPack::InitCount() == 1,
+          "index parsed exactly once for two opens of the same root");
+  }
+
   std::printf("AmprPackTests: all cases passed\n");
   return 0;
 }
