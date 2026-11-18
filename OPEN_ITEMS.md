@@ -4,7 +4,7 @@ Context: goal met (PPSA21567 v01.019.000 boots and gets in-game on RX 580 from t
 load 48 s → 5 s). Nothing below blocks the goal. Details/evidence:
 `.superpowers/sdd/2026-11-18-ampr-pack-vfs/progress.md`, `GOAL.md`.
 Product tree: `/tmp/opencode/jetsku-plus`, branch `jetsku-plus`, HEAD = local commits through
-`9bb1f2c5` (not pushed).
+`60f48bfd` (not pushed).
 
 Note: game speed follows the **virtual vblank frequency**, not presented FPS. Use 60 Hz
 (the default) for 100% speed; 30 Hz halves simulation rate. The emulator keeps ~60 vblank ticks/s
