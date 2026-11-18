@@ -97,17 +97,23 @@ public:
 
 	std::optional<Entry> Find(std::string_view member) override {
 		AmprPack::FileInfo info {};
-		if (!m_pack->Lookup(member, info)) {
-			return {};
+		if (m_pack->Lookup(member, info)) {
+			std::lock_guard lock(m_mutex);
+			m_files[info.firstChunk] = info;
+			return Entry {info.firstChunk, info.size, true};
 		}
-		std::lock_guard lock(m_mutex);
-		m_files[info.firstChunk] = info;
-		return Entry {info.firstChunk, info.size, true};
+		if (m_pack->IsDirectory(member)) {
+			return Entry {0, 0, false};
+		}
+		return {};
 	}
 
-	// shortcut: index-only directory enumeration is deferred; libAmpr opens files by full path.
-	std::vector<File::DirEntry> List(std::string_view) override {
-		return {};
+	std::vector<File::DirEntry> List(std::string_view member) override {
+		std::vector<File::DirEntry> result;
+		for (const auto& entry: m_pack->ListDirectory(member)) {
+			result.push_back({entry.name, entry.is_file});
+		}
+		return result;
 	}
 
 	uint64_t Read(uint64_t id, uint64_t offset, uint32_t size, void* data) override {

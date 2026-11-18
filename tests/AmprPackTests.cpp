@@ -240,6 +240,35 @@ int main() {
 
     const auto missing = Common::MakeArchivePath(archive, "data/common/font/NoSuchFont.otf");
     Check(!Common::File::IsFileExisting(missing), "non-index member does not exist");
+
+    // Fix round 1: index-only directories must be detectable and enumerable.
+    const std::string fontDir = "data/common/font";
+    Check(pack.IsDirectory(fontDir), "known index-only directory is detected");
+    const auto children = pack.ListDirectory(fontDir);
+    bool foundFontChild = false;
+    for (const auto& entry : children) {
+      if (entry.name == "FuturaStd-Bold.otf") {
+        foundFontChild = true;
+        Check(entry.is_file, "font child is a file");
+      }
+    }
+    Check(foundFontChild, "ListDirectory includes the known font");
+    Check(!pack.IsDirectory("data/common/no_such_dir"), "unknown directory is not detected");
+    Check(pack.ListDirectory("data/common/no_such_dir").empty(), "unknown directory lists nothing");
+
+    const auto dirVirtual = Common::MakeArchivePath(archive, fontDir);
+    Check(Common::File::IsDirectoryExisting(dirVirtual), "virtual directory stats as a directory");
+    const auto virtualChildren = Common::File::GetDirEntries(dirVirtual);
+    bool foundVirtualFont = false;
+    for (const auto& entry : virtualChildren) {
+      if (entry.name == "FuturaStd-Bold.otf") {
+        foundVirtualFont = true;
+        Check(entry.is_file, "virtual font child is a file");
+      }
+    }
+    Check(foundVirtualFont, "virtual directory listing includes the font");
+    Check(!Common::File::IsDirectoryExisting(Common::MakeArchivePath(archive, "data/common/no_such_dir")),
+          "non-existent virtual directory is not detected");
   }
 
   std::printf("AmprPackTests: all cases passed\n");

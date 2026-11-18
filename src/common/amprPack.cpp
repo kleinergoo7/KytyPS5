@@ -80,6 +80,16 @@ std::string_view RelativePath(std::string_view path) {
 	return path;
 }
 
+std::string DirectoryPrefix(std::string_view member) {
+	const auto relative = RelativePath(member);
+	if (relative.empty()) {
+		return {};
+	}
+	std::string prefix = Fold(relative);
+	prefix.push_back('/');
+	return prefix;
+}
+
 bool ReadExact(int fd, void* buffer, size_t size, uint64_t offset) {
 	auto* bytes = static_cast<uint8_t*>(buffer);
 	while (size != 0) {
@@ -120,6 +130,7 @@ void AmprPack::Reset() {
 	}
 	m_scratch.clear();
 	m_folded.clear();
+	m_sortedPaths.clear();
 	m_files = m_chunks = m_volumes = m_strings = nullptr;
 	m_fileCount = m_chunkCount = m_stringsLen = 0;
 	m_volumeCount = 0;
@@ -212,6 +223,11 @@ bool AmprPack::Init(const std::filesystem::path& gameRoot) {
 		const std::string_view path(reinterpret_cast<const char*>(m_strings + pathOff), pathLen);
 		m_folded.emplace(Fold(path), static_cast<uint32_t>(i));
 	}
+	m_sortedPaths.reserve(m_folded.size());
+	for (const auto& entry: m_folded) {
+		m_sortedPaths.push_back(entry.first);
+	}
+	std::sort(m_sortedPaths.begin(), m_sortedPaths.end());
 
 	m_scratch.resize(2 * kChunkSize);
 	m_dctx = ZSTD_createDCtx();
@@ -278,6 +294,48 @@ bool AmprPack::Lookup(std::string_view guestPath, FileInfo& out) const {
 bool AmprPack::Exists(std::string_view guestPath) const {
 	FileInfo info {};
 	return Lookup(guestPath, info);
+}
+
+bool AmprPack::IsDirectory(std::string_view member) const {
+	const auto prefix = DirectoryPrefix(member);
+	if (prefix.empty()) {
+		return false;
+	}
+	const auto it = std::lower_bound(m_sortedPaths.begin(), m_sortedPaths.end(), prefix);
+	return it != m_sortedPaths.end() && it->compare(0, prefix.size(), prefix) == 0;
+}
+
+std::vector<AmprPack::DirEntry> AmprPack::ListDirectory(std::string_view member) const {
+	std::vector<DirEntry> result;
+	const auto            prefix = DirectoryPrefix(member);
+	if (prefix.empty()) {
+		return result;
+	}
+	std::unordered_map<std::string, bool> children;
+	for (auto it = std::lower_bound(m_sortedPaths.begin(), m_sortedPaths.end(), prefix);
+	     it != m_sortedPaths.end() && it->compare(0, prefix.size(), prefix) == 0; ++it) {
+		const auto found = m_folded.find(*it);
+		if (found == m_folded.end()) {
+			continue;
+		}
+		const uint8_t* record = m_files + uint64_t(found->second) * 32;
+		const std::string_view path(
+		    reinterpret_cast<const char*>(m_strings + Le32(record + 20)), Le16(record + 24));
+		if (path.size() <= prefix.size()) {
+			continue;
+		}
+		const auto remainder  = path.substr(prefix.size());
+		const auto separator  = remainder.find('/');
+		auto&      isFile     = children[std::string(remainder.substr(0, separator))];
+		isFile                = isFile || separator == std::string_view::npos;
+	}
+	result.reserve(children.size());
+	for (auto& child: children) {
+		result.push_back({child.first, child.second});
+	}
+	std::sort(result.begin(), result.end(),
+	          [](const DirEntry& a, const DirEntry& b) { return a.name < b.name; });
+	return result;
 }
 
 int AmprPack::VolumeFd(uint32_t volume) {
@@ -370,6 +428,14 @@ bool AmprPack::Lookup(std::string_view, FileInfo&) const {
 
 bool AmprPack::Exists(std::string_view) const {
 	return false;
+}
+
+bool AmprPack::IsDirectory(std::string_view) const {
+	return false;
+}
+
+std::vector<AmprPack::DirEntry> AmprPack::ListDirectory(std::string_view) const {
+	return {};
 }
 
 bool AmprPack::Read(const FileInfo&, uint64_t, size_t, void*) {

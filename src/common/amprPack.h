@@ -23,6 +23,11 @@ public:
 		uint32_t chunkCount;
 	};
 
+	struct DirEntry {
+		std::string name;
+		bool        is_file;
+	};
+
 	AmprPack() = default;
 	~AmprPack();
 	KYTY_CLASS_NO_COPY(AmprPack)
@@ -31,6 +36,10 @@ public:
 
 	[[nodiscard]] bool Lookup(std::string_view guestPath, FileInfo& out) const;
 	[[nodiscard]] bool Exists(std::string_view guestPath) const;
+
+	// Directory enumeration derived from the path string table. Member paths need no "/app0/" prefix.
+	[[nodiscard]] bool IsDirectory(std::string_view member) const;
+	[[nodiscard]] std::vector<DirEntry> ListDirectory(std::string_view member) const;
 
 	// One scratch buffer and one zstd context per instance: serialize reads on the same instance.
 	bool Read(const FileInfo& file, uint64_t offset, size_t len, void* out);
@@ -54,6 +63,7 @@ private:
 	std::filesystem::path                  m_root;
 	std::vector<int>                       m_volumeFds;
 	std::unordered_map<std::string, uint32_t> m_folded;
+	std::vector<std::string>               m_sortedPaths; // folded file paths, sorted for prefix queries
 	std::vector<uint8_t>                   m_scratch;
 	ZSTD_DCtx*                             m_dctx = nullptr;
 };
