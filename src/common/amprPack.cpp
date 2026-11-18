@@ -1,5 +1,9 @@
 #include "common/amprPack.h"
 
+// mmap/pread and the POSIX headers below only exist on Linux and macOS. common is built on Windows too,
+// where the reader stays in the target but reports every lookup/read as a miss.
+#if defined(__linux__) || defined(__APPLE__)
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
@@ -349,3 +353,29 @@ bool AmprPack::Read(const FileInfo& file, uint64_t offset, size_t len, void* out
 }
 
 } // namespace Common
+
+#else
+
+namespace Common {
+
+AmprPack::~AmprPack() = default;
+
+bool AmprPack::Init(const std::filesystem::path&) {
+	return false;
+}
+
+bool AmprPack::Lookup(std::string_view, FileInfo&) const {
+	return false;
+}
+
+bool AmprPack::Exists(std::string_view) const {
+	return false;
+}
+
+bool AmprPack::Read(const FileInfo&, uint64_t, size_t, void*) {
+	return false;
+}
+
+} // namespace Common
+
+#endif
