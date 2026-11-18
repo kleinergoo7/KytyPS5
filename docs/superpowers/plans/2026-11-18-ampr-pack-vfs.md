@@ -206,6 +206,58 @@ git commit -m "test(ampr): boot harness for the packed v01.019.000 dump"
 
 ---
 
+### Task 5: Resolve index-only directories in the mount hook (added after Task 4 blocker)
+
+**Files:**
+- Modify: `src/kernel/fileSystem.cpp` (`MountPoints::ResolvePath`, the `p.ampr` host-miss branch)
+- Modify: `tests/AmprPackTests.cpp`
+- Test: `ampr_pack_tests`
+
+**Interfaces:**
+- Consumes: `Common::AmprPack::IsDirectory(std::string_view)` and `ListDirectory` from Task 2.
+- Produces: host-missing guest directory paths that exist only in the pack resolve to the `.amprz` virtual path, so `KernelStat`/`GetDirEntries` succeed.
+
+**Why:** Task 4 proved the gray screen is gone and indexed files resolve, but the packed dump stalls on a static black frame because 351 guest paths reported "file not found" include index-only directories (`data/prein/spx`, `data/prein/levels/ui_setting/anim`, ...). The hook currently checks only `Lookup` (files).
+
+- [ ] **Step 1: Write the failing test**
+
+In `tests/AmprPackTests.cpp`, after mounting the packed folder at `/app0`, assert that
+`GetRealFilename("/app0/data/prein/spx")` (and one `.../anim` directory) returns an archive path
+containing `!/`, and that `Common::File::IsDirectoryExisting` succeeds on it with non-empty
+`GetDirEntries` where the index has children. Assert the old `.zar` regression still passes.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd /tmp/opencode/jetsku-plus
+env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin cmake --build _Build/linux --target ampr_pack_tests --parallel && ./_Build/linux/ampr_pack_tests
+```
+Expected: FAIL (directory host-miss is not redirected).
+
+- [ ] **Step 3: Implement the directory branch**
+
+In `ResolvePath`'s `p.ampr` host-miss branch, after the `Lookup` check fails, call
+`p.ampr->IsDirectory(rel_path)`; on true return
+`Common::MakeArchivePath(p.dir / "__ampr__.amprz", native_rel_path)` exactly as for files. Keep the
+case-folded matching and the `{}`/ENOENT behavior unchanged. Keep the POSIX platform guard.
+
+- [ ] **Step 4: Run tests; build full emulator**
+
+Command from Step 2, then `cmake --build _Build/linux --target kyty_emulator --parallel`. Expected: PASS.
+
+- [ ] **Step 5: Re-run the Task 4 boot test**
+
+`bash tools/local/test_ampr_boot.sh` from `/tmp/opencode/jetsku-plus`; expect the ASTRO BOT title screen.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/kernel/fileSystem.cpp tests/AmprPackTests.cpp
+git commit -m "fix(ampr): resolve index-only directories at mount time"
+```
+
+---
+
 ## Self-review notes
 - Spec coverage: reader (T1), archive routing (T2), mount hook (T3), boot proof (T4); case fallback, cross-chunk reads, no-index regression, and mutating-op rejection all have tests.
 - Target tree is jetsku-plus throughout; no `KytyPS5-ds` product files are modified.
