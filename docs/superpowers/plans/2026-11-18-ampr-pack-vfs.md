@@ -258,6 +258,51 @@ git commit -m "fix(ampr): resolve index-only directories at mount time"
 
 ---
 
+### Task 6: Cache the AMPR reader so `Init` runs once (added after Task 5 investigation)
+
+**Files:**
+- Modify: `src/common/archive.cpp` (`OpenAmprPack`)
+- Modify: `tests/AmprPackTests.cpp`
+
+**Interfaces:**
+- Consumes: `Common::AmprPack` from Task 1.
+- Produces: repeated `Common::OpenArchive(<root>/__ampr__.amprz)` calls reuse the same reader and call `AmprPack::Init` once per root.
+
+**Why:** gdb stacks on a stalled boot show `OdxAsyncLoader` and `RoomLoad_ATQT` inside `AmprPack::Init` (22 MB parse + 166k-string sort) at 45 s. `OpenArchive`'s reader cache is `weak_ptr`-only (`archive.cpp:217`) and nothing holds a strong ref for `.amprz`, so every open reparses the index.
+
+- [ ] **Step 1: Write the failing test**
+
+In `tests/AmprPackTests.cpp`, after mounting the packed folder, call `Common::File::IsFileExisting` on two different indexed members in sequence and assert the second call is fast and that both resolve. Add an instrumentation counter if needed (e.g. expose `AmprPack::InitCount()` under a test-only accessor) asserting `Init` was called exactly once for the two opens.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd /tmp/opencode/jetsku-plus
+env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin cmake --build _Build/linux --target ampr_pack_tests --parallel && ./_Build/linux/ampr_pack_tests
+```
+Expected: FAIL (Init count > 1).
+
+- [ ] **Step 3: Keep a strong reader**
+
+In `OpenAmprPack`, keep a process-lifetime strong `shared_ptr<AmprPack>` keyed by the game root (static map with a mutex), and have each `AmprPackReaderBackend` hold a `shared_ptr` to it. Do not change `OpenArchive`'s generic weak cache or any other archive format. Keep the POSIX guard.
+
+- [ ] **Step 4: Run tests; build full emulator**
+
+Command from Step 2, then `cmake --build _Build/linux --target kyty_emulator --parallel`. Expected: PASS.
+
+- [ ] **Step 5: Re-run the boot test**
+
+`bash tools/local/test_ampr_boot.sh`; expect the ASTRO BOT title screen instead of the black frame.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/common/archive.cpp tests/AmprPackTests.cpp
+git commit -m "fix(ampr): keep one AMPR reader alive to avoid re-parsing the index"
+```
+
+---
+
 ## Self-review notes
 - Spec coverage: reader (T1), archive routing (T2), mount hook (T3), boot proof (T4); case fallback, cross-chunk reads, no-index regression, and mutating-op rejection all have tests.
 - Target tree is jetsku-plus throughout; no `KytyPS5-ds` product files are modified.
