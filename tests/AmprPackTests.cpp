@@ -308,6 +308,27 @@ int main() {
     const auto packedFoldedStr = Common::PathToGenericString(packedFolded);
     Check(packedFoldedStr.find("!/") != std::string::npos, "mixed-case guest path resolves to a virtual path");
     Check(Common::File::Size(packedFolded) == 28280, "mixed-case guest path resolves to a readable 28280-byte font");
+
+    // Task 5: index-only DIRECTORIES that are missing on the host must redirect to the
+    // synthetic .amprz archive too, so directory stat/enumeration succeeds.
+    const std::string packedDirRel = "data/prein/spx";
+    Check(pack.IsDirectory(packedDirRel), "spx is an index-only directory");
+    const auto packedDirResolved = FS::GetRealFilename("/app0/" + packedDirRel);
+    const auto packedDirStr = Common::PathToGenericString(packedDirResolved);
+    Check(packedDirStr.find("!/") != std::string::npos, "missing guest directory resolves to an archive path");
+    Check(packedDirStr.find("__ampr__.amprz") != std::string::npos, "resolved directory uses the amprz backend");
+    Check(Common::File::IsDirectoryExisting(packedDirResolved), "resolved directory stats as a directory");
+    Check(!Common::File::GetDirEntries(packedDirResolved).empty(), "resolved directory has non-empty listing");
+
+    const std::string animRel =
+        "data/prein/levels/hero_locoroco/cinematics/power_up_cinematics_locoroco_01/anim";
+    Check(pack.IsDirectory(animRel), "anim is an index-only directory");
+    const auto animResolved = FS::GetRealFilename("/app0/" + animRel);
+    const auto animStr = Common::PathToGenericString(animResolved);
+    Check(animStr.find("!/") != std::string::npos, "missing anim directory resolves to an archive path");
+    Check(Common::File::IsDirectoryExisting(animResolved), "resolved anim directory stats as a directory");
+    Check(!Common::File::GetDirEntries(animResolved).empty(), "resolved anim directory has non-empty listing");
+
     Check(FS::GetRealFilename("/unmounted/font.otf").empty(), "unmounted guest path stays empty");
 
     // Mutating operations on the virtual path are rejected and create no host file.

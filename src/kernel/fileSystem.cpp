@@ -389,7 +389,7 @@ std::filesystem::path MountPoints::ResolvePath(const std::string& mounted_name) 
 			std::error_code ec;
 			if (!std::filesystem::exists(resolved, ec)) {
 				Common::AmprPack::FileInfo info;
-				if (p.ampr->Lookup(rel_path, info)) {
+				if (p.ampr->Lookup(rel_path, info) || p.ampr->IsDirectory(rel_path)) {
 					return Common::MakeArchivePath(p.dir / "__ampr__.amprz", native_rel_path);
 				}
 			}
