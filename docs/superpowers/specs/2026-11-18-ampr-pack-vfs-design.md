@@ -19,6 +19,9 @@ this dump on the RX 580 without unpacking, by teaching Kyty to serve packed file
 - Do not modify the working old-ROM configuration.
 
 ## Constraints
+- **Implementation target: `/tmp/opencode/jetsku-plus` (branch `jetsku-plus`, HEAD 809121b6)** — the
+  build used for every boot test and the only one with the working old-ROM path. The older
+  `KytyPS5-ds` tree has a different `ArchiveReader::Read(lane, ...)` API and is not the target.
 - Build with system packages only; ccache; no llvmpipe.
 - Preserve all improvements; local commits + explicit pushes only.
 - Target 900p window, RX 580 / RADV POLARIS10.
@@ -39,7 +42,10 @@ this dump on the RX 580 without unpacking, by teaching Kyty to serve packed file
   chunk_shift 18, level 1..22, CRCs, contiguous tables, `strings_off+strings_len == file_size`.
 - `Lookup(game_path)`: strip `/app0/` (ASCII case-preserving), compute standard FNV-1a 64 over the
   relative bytes, binary-search the 166,728 × 32 B file records by (hash, exact path bytes), return
-  `logical_size`, `first_chunk`, `chunk_count`.
+  `logical_size`, `first_chunk`, `chunk_count`. Also build a secondary map keyed by ASCII-folded
+  relative path at mount and use it only if the exact lookup misses: the kernel FS's
+  `ResolvePathIgnoringCase` is case-insensitive, so a guest path with different case must still
+  resolve. The folded map costs ~15 MiB and avoids a rebuild cycle if the game uses mixed case.
 - `Read(file, offset, len, out)`: for each 256 KiB chunk, decode the u64 word
   (`off = w & 0xffffffff`, `vol = (w >> 32) & 0xfff`, `stored = ((w >> 44) & 0x3ffff) + 1`,
   `codec = w >> 62`), `pread` the stored bytes from `ampr_zstd-%03u.pak` (lazy-open, 11 fds max),
@@ -86,7 +92,10 @@ compiled into `kyty_emulator` to need no CMake change. Prefer the latter for the
 ## Testing
 - Unit test: parse the real index, look up a known file (`data/common/font/FuturaStd-Bold.otf`,
   28,280 B, chunk 587,370, volume 8), read first/last bytes and a cross-chunk range; compare against
-  `ps5-dump-forge --zstd-unpack` output for that one file.
+  the downloaded `ps5-dump-forge` at
+  `/tmp/opencode/ps5-dump-forge-0.5.6-linux-x86-64-musl/ps5-dump-forge` (already present; the earlier
+  full-unpack run was cancelled, so unpack just that one file via a small index fixture, or use the
+  same 28,280-byte font from the old `ASTRO_BOT.zar` as the oracle).
 - Integration: boot the v01.019.000 dump at 1600×900 on the RX 580 and capture frames; success is the
   ASTRO BOT title/galaxy screen instead of the gray rectangle.
 - Regression: boot the old `.zar` dump and confirm the title screen is unchanged.
@@ -98,6 +107,11 @@ compiled into `kyty_emulator` to need no CMake change. Prefer the latter for the
   the small merge at `fileSystem.cpp:521` / `:1214-1215` only if the boot test shows it is needed.
 - Synthetic archive extension name and how the backend locates the real `ampr_zstd.index` beside it.
 
+## Builder check resolved
+- Target tree: jetsku-plus (answered above; the spec's file:line references are all from that tree).
+- Case sensitivity: exact-case binary search with a case-folded fallback map built at mount.
+- Test oracle: the downloaded ps5-dump-forge CLI, or the same font in the old .zar.
+
 ## Status
-Design finalized from both investigations. Taking the user's "1" as approval of approach 1;
-running the builder check next, then writing the implementation plan. No product code touched yet.
+Design finalized from both investigations and the builder check. Taking the user's "1" as approval
+of approach 1; next is the implementation plan. No product code touched yet.
