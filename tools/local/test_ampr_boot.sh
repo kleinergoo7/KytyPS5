@@ -25,7 +25,7 @@ LOG="$OUT/run.log"
 ARGS=(--game "$GAME")
 [ -n "$PATCH" ] && ARGS+=(--game-patch "$PATCH")
 ARGS+=(--screen-width 1600 --screen-height 900 \
-  --console-language 1 --vblank-frequency 30 \
+  --console-language 1 --vblank-frequency 60 \
   --present-mode Mailbox --skip-notice-screen true --no-splash \
   --printf-direction Console)
 
