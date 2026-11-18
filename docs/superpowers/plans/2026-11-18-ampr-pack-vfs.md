@@ -301,6 +301,47 @@ git add src/common/archive.cpp tests/AmprPackTests.cpp
 git commit -m "fix(ampr): keep one AMPR reader alive to avoid re-parsing the index"
 ```
 
+### Task 7: Fast-path packed paths before case-insensitive resolution (added after boot success)
+
+**Files:**
+- Modify: `src/kernel/fileSystem.cpp` (`MountPoints::ResolvePath`)
+- Modify: `tests/AmprPackTests.cpp`
+
+**Interfaces:**
+- Consumes: `p.ampr` (per-mount `AmprPack`) from Task 3.
+- Produces: packed paths resolve via the in-memory index without a host directory walk.
+
+**Why:** baseline first-render is 48 s. `ResolvePathIgnoringCase` (fileSystem.cpp:305-334) walks
+host directories component-by-component for every missing path BEFORE the AMPR check at :383. Since
+all packed files are host-missing, every one pays that cost.
+
+- [ ] **Step 1: Write a test asserting the fast path**
+
+Extend `tests/AmprPackTests.cpp`: with the packed folder mounted, resolve an indexed member and
+assert the returned path is the `.amprz` virtual path. Instrument `ResolvePathIgnoringCase` call
+count if a cheap seam exists; otherwise assert behavior only and rely on the measured load time.
+
+- [ ] **Step 2: Run test to verify it currently passes** (this is a perf change, not a behavior fix)
+
+- [ ] **Step 3: Reorder the check**
+
+In `ResolvePath`, compute the host candidate once. If `p.ampr` is set and the candidate does not
+exist on disk and `p.ampr->Lookup(rel_path, info) || p.ampr->IsDirectory(rel_path)`, return the
+`.amprz` virtual path immediately. Only otherwise call `ResolvePathIgnoringCase`. Keep the `{}`
+return for unmounted paths, archive-mount early return, O_CREAT/EROFS behavior and POSIX guard.
+
+- [ ] **Step 4: Run tests, build emulator, measure load**
+
+`cmake --build _Build/linux --target ampr_pack_tests`, then `kyty_emulator`, then
+`/tmp/opencode/measure-load.sh`. Expected: first_render < 48 s, all tests pass.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/kernel/fileSystem.cpp tests/AmprPackTests.cpp
+git commit -m "perf(ampr): resolve packed paths before case-insensitive host walk"
+```
+
 ---
 
 ## Self-review notes
