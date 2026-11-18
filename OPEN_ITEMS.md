@@ -3,7 +3,12 @@
 Context: goal met (PPSA21567 v01.019.000 boots and gets in-game on RX 580 from the AMPR repack;
 load 48 s → 5 s). Nothing below blocks the goal. Details/evidence:
 `.superpowers/sdd/2026-11-18-ampr-pack-vfs/progress.md`, `GOAL.md`.
-Product tree: `/tmp/opencode/jetsku-plus`, branch `jetsku-plus`, HEAD `865f90f6` (local only).
+Product tree: `/tmp/opencode/jetsku-plus`, branch `jetsku-plus`, HEAD = local commits through
+`9bb1f2c5` (not pushed).
+
+Note: game speed follows the **virtual vblank frequency**, not presented FPS. Use 60 Hz
+(the default) for 100% speed; 30 Hz halves simulation rate. The emulator keeps ~60 vblank ticks/s
+even when actual presentation is slower, so FPS drops do not slow the game.
 
 ## Correctness / robustness (all Minor)
 1. **`m_chunkCount` overflow guard** — `src/common/amprPack.cpp:230` lacks the `UINT32_MAX` check
