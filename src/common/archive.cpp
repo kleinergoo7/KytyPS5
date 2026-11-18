@@ -1,5 +1,6 @@
 #include "common/archive.h"
 
+#include "common/amprPack.h"
 #include "common/cpuPlacement.h"
 #include "common/stringUtils.h"
 
@@ -88,12 +89,56 @@ std::shared_ptr<ArchiveReader> OpenZArchive(const std::filesystem::path& path) {
 	return reader ? std::make_shared<ZArchiveReaderBackend>(std::move(reader)) : nullptr;
 }
 
+// Read-only view of an AMPR zstd index. The synthetic "__ampr__.amprz" file never exists on disk;
+// its parent directory is the game root that holds ampr_zstd.index and the pak volumes.
+class AmprPackReaderBackend final: public ArchiveReader {
+public:
+	explicit AmprPackReaderBackend(std::unique_ptr<AmprPack> pack): m_pack(std::move(pack)) {}
+
+	std::optional<Entry> Find(std::string_view member) override {
+		AmprPack::FileInfo info {};
+		if (!m_pack->Lookup(member, info)) {
+			return {};
+		}
+		std::lock_guard lock(m_mutex);
+		m_files[info.firstChunk] = info;
+		return Entry {info.firstChunk, info.size, true};
+	}
+
+	// shortcut: index-only directory enumeration is deferred; libAmpr opens files by full path.
+	std::vector<File::DirEntry> List(std::string_view) override {
+		return {};
+	}
+
+	uint64_t Read(uint64_t id, uint64_t offset, uint32_t size, void* data) override {
+		std::lock_guard lock(m_mutex);
+		const auto found = m_files.find(id);
+		if (found == m_files.end()) {
+			return 0;
+		}
+		const auto& info      = found->second;
+		const auto  available = offset < info.size ? info.size - offset : 0;
+		const auto  want      = static_cast<uint32_t>(std::min<uint64_t>(size, available));
+		return want != 0 && m_pack->Read(info, offset, want, data) ? want : 0;
+	}
+
+private:
+	std::unique_ptr<AmprPack>                         m_pack;
+	std::mutex                                        m_mutex;
+	std::unordered_map<uint64_t, AmprPack::FileInfo> m_files;
+};
+
+std::shared_ptr<ArchiveReader> OpenAmprPack(const std::filesystem::path& path) {
+	auto pack = std::make_unique<AmprPack>();
+	return pack->Init(path.parent_path()) ? std::make_shared<AmprPackReaderBackend>(std::move(pack)) : nullptr;
+}
+
 struct ArchiveFormat {
 	std::string_view extension;
 	std::shared_ptr<ArchiveReader> (*open)(const std::filesystem::path&);
 };
 
-constexpr ArchiveFormat Formats[] = {{".zar", OpenZArchive}};
+constexpr ArchiveFormat Formats[] = {{".zar", OpenZArchive}, {".amprz", OpenAmprPack}};
 using NativeView                  = std::basic_string_view<std::filesystem::path::value_type>;
 
 const ArchiveFormat* FindFormat(NativeView path) {

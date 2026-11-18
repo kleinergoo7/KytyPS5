@@ -1,5 +1,7 @@
 #include "common/amprPack.h"
+#include "common/archive.h"
 #include "common/common.h"
+#include "common/file.h"
 
 #include <algorithm>
 #include <chrono>
@@ -215,6 +217,30 @@ int main() {
   Check(corrupt.Lookup("/app0/data/common/font/FuturaStd-Bold.otf", corruptFont), "corrupt index lookup");
   std::vector<uint8_t> ignored(font.size);
   Check(!corrupt.Read(corruptFont, 0, ignored.size(), ignored.data()), "corrupt chunk word fails Read");
+
+  // Task 2: the same index is served through the registered archive backend and virtual paths.
+  {
+    const auto archive = root / "__ampr__.amprz";
+    const auto fontVirtual = Common::MakeArchivePath(archive, "data/common/font/FuturaStd-Bold.otf");
+    Check(Common::IsArchivePath(fontVirtual), "amprz virtual path is recognized");
+    Check(Common::File::IsFileExisting(fontVirtual), "virtual font exists");
+    Check(Common::File::Size(fontVirtual) == 28280, "virtual font size");
+
+    Common::File file;
+    Check(file.Open(fontVirtual, Common::File::Mode::Read), "virtual font opens");
+    Check(file.Size() == 28280, "opened virtual font size");
+    std::vector<uint8_t> virtualBytes(28280);
+    uint32_t got = 0;
+    file.Read(virtualBytes.data(), static_cast<uint32_t>(virtualBytes.size()), &got);
+    Check(got == virtualBytes.size(), "virtual font full read");
+    Check(Crc32(virtualBytes.data(), virtualBytes.size()) == kFontCrc, "virtual font CRC matches oracle");
+    Check(std::memcmp(virtualBytes.data(), bytes.data(), bytes.size()) == 0,
+          "virtual font matches direct reader");
+    file.Close();
+
+    const auto missing = Common::MakeArchivePath(archive, "data/common/font/NoSuchFont.otf");
+    Check(!Common::File::IsFileExisting(missing), "non-index member does not exist");
+  }
 
   std::printf("AmprPackTests: all cases passed\n");
   return 0;
